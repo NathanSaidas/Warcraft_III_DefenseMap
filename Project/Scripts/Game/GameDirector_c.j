@@ -10,18 +10,26 @@ function GameDirector_SpawnWaveUnit takes integer spawnIndex returns nothing
     local real x = GameDirector_gSpawnX[spawnIndex]
     local real y = GameDirector_gSpawnY[spawnIndex]
     local integer index = 0
-    local integer runToCityComponent = INVALID
+    local integer component = INVALID
     loop
         exitwhen index >= GameDirector_gMaxUnit
         if IsNull(GameDirector_gWaveUnits[index]) then
             set GameDirector_gWaveUnits[index] = UnitMgr_CreateUnit(unitTypeData, playerData, x, y)
 
-            set runToCityComponent = RunToCityComponent_Create()
-            if not IsNull(runToCityComponent) then
-                call UnitData_AddComponent(GameDirector_gWaveUnits[index], runToCityComponent)
+            set component = RunToCityComponent_Create()
+            if not IsNull(component) then
+                call UnitData_AddComponent(GameDirector_gWaveUnits[index], component)
             else
                 call DebugLog(LOG_ERROR, "GameDirector_c: Failed to create RunToCityComponent")
             endif
+
+            set component = MonitorUnitLifeComponent_Create()
+            if not IsNull(component) then
+                call UnitData_AddComponent(GameDirector_gWaveUnits[index], component)
+            else
+                call DebugLog(LOG_ERROR, "GameDirector_c: Failed to create MonitorUnitLifeComponent")
+            endif
+
             set GameDirector_gWaveUnits_mSize = GameDirector_gWaveUnits_mSize + 1
             return
         endif
@@ -150,6 +158,7 @@ function GameDirector_UpdateUnits takes nothing returns nothing
         exitwhen i >= GameDirector_gMaxUnit
         if not IsNull(GameDirector_gWaveUnits[i]) then
             if LoadBoolean(gObject, GameDirector_gWaveUnits[i], UnitData_mQueueDestroy) then
+                call DebugLog(LOG_INFO, "DestroyWaveUnit")
                 call UnitMgr_DestroyUnit(GameDirector_gWaveUnits[i])
                 set GameDirector_gWaveUnits_mSize = GameDirector_gWaveUnits_mSize - 1
                 set GameDirector_gWaveUnits[i] = INVALID

@@ -64,3 +64,23 @@ function PlayerMgr_ResetPlayers takes nothing returns nothing
         set i = i + 1
     endloop
 endfunction
+
+function PlayerMgr_UpdateHeroes takes nothing returns nothing
+    local integer i = 0
+    local integer mHero = INVALID
+    local integer mPlayerData = INVALID
+    loop
+        exitwhen i >= PlayerMgr_gMaxPlayer
+        set mHero = PlayerData_GetHero(PlayerMgr_gPlayers[i])
+        if not IsNull(mHero) then
+            set mPlayerData = LoadInteger(gObject, mHero, UnitData_mPlayerData)
+            if LoadBoolean(gObject, mHero, UnitData_mQueueDestroy) then
+                call UnitMgr_DestroyUnit(mHero)
+                call SaveInteger(gObject, mPlayerData, PlayerData_mHero, INVALID)
+            else
+                call UnitData_Update(mHero)
+            endif
+        endif
+        set i = i + 1
+    endloop
+endfunction

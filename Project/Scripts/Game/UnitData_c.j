@@ -6,6 +6,12 @@ function SetUnitId takes unit unitHandle, integer id returns nothing
     call SetUnitUserData(unitHandle, id + 1)
 endfunction
 
+function UnitData_GetComponents takes integer self returns integer
+    if not SelfCheck(self, TYPE_ID_UNIT_DATA, "UnitData_GetComponents") then
+        return INVALID
+    endif
+    return LoadInteger(gObject, self, UnitData_mComponents)
+endfunction
 
 function UnitData_GetComponent takes integer self, integer typeId returns integer
     local integer i = 0

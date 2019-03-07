@@ -29,6 +29,7 @@ function Main_Init takes nothing returns nothing
     // call GameRules_Init()
     // call CmdObject_Init()
     call CmdGame_Init()
+    call CmdDebug_Init()
     call DebugLog(LOG_INFO, "Main_Init finished.")
 
     

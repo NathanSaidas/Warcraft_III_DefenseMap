@@ -22,6 +22,7 @@ Scripts\Game\UnitMgr_c
 Scripts\Game\PlayerMgr_c
 Scripts\Components\RunToCityComponent
 Scripts\Components\PlayerHeroComponent
+Scripts\Components\MonitorUnitLifeComponent
 Scripts\Game\GameDirector_c
 Scripts\Game\GameState_Loading_h
 Scripts\Game\GameState_Loading_c
@@ -41,4 +42,5 @@ Scripts\Game\ComponentRegister
 Scripts\Game\GameDirectorRegister
 Scripts\Game\GameState_c
 Scripts\Commands\CmdGame
+Scripts\Commands\CmdDebug
 Scripts\Core\Main

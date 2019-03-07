@@ -103,11 +103,21 @@ function Game_DirectorUnitUpdate takes nothing returns nothing
     endloop
 endfunction
 
+function Game_PlayerHeroUpdate takes nothing returns nothing
+    local integer mUpdateThread = Thread_GetDriver("Game_PlayerHeroUpdate")
+    loop
+        call Thread_UpdateTick(mUpdateThread)
+        call PlayerMgr_UpdateHeroes()
+        call Sleep(GAME_DELTA)
+    endloop 
+endfunction
+
 function Game_Update takes nothing returns nothing
     local integer mUpdateThread = Thread_GetDriver("Game_Update")
     local integer mStateThread = INVALID
     local integer mDirectorThread = INVALID
     local integer mDirectorUnitUpdateThread = INVALID
+    local integer mPlayerHeroUpdateThread = INVALID
     
     call Thread_RegisterDriver("Game_UpdateState", function Game_UpdateState)
     set mStateThread = Thread_GetDriver("Game_UpdateState")
@@ -117,6 +127,9 @@ function Game_Update takes nothing returns nothing
 
     call Thread_RegisterDriver("Game_DirectorUnitUpdate", function Game_DirectorUnitUpdate)
     set mDirectorUnitUpdateThread = Thread_GetDriver("Game_DirectorUnitUpdate")
+
+    call Thread_RegisterDriver("Game_PlayerHeroUpdate", function Game_PlayerHeroUpdate)
+    set mPlayerHeroUpdateThread = Thread_GetDriver("Game_PlayerHeroUpdate")
 
     loop
         call Thread_UpdateTick(mUpdateThread)
@@ -132,6 +145,10 @@ function Game_Update takes nothing returns nothing
 
         if not Thread_IsRunning(mDirectorUnitUpdateThread) then
             call Thread_StartDriver("Game_DirectorUnitUpdate")
+        endif
+
+        if not Thread_IsRunning(mPlayerHeroUpdateThread) then
+            call Thread_StartDriver("Game_PlayerHeroUpdate")
         endif
 
         call Sleep(GAME_DELTA)
