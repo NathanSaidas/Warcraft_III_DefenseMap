@@ -31,6 +31,22 @@ function CmdDebug_ComponentView takes nothing returns nothing
 
 endfunction
 
+function CmdDebug_SetLevel takes integer level returns nothing
+    local integer unitData = CmdDebug_GetSelectedUnits(Cmd_GetEventPlayer())
+    local unit u = null
+
+    if IsNull(unitData) then
+        return
+    endif
+    
+    call DebugLog(LOG_INFO, "Set Level to " + I2S(level))
+    if UnitTypeData_IsHero(LoadInteger(gObject, unitData, UnitData_mTypeData)) then
+        set u = LoadUnitHandle(gObject, unitData, UnitData_mHandle)
+        call SetHeroLevel(u, level, true)
+    endif
+    set u = null
+endfunction
+
 function CmdDebug_Help takes nothing returns nothing
     call DebugLog(LOG_INFO, "Available Commands")
     call DebugLog(LOG_INFO, "-debug component.view : Shows the list of components on the selected unit.")
@@ -40,6 +56,12 @@ function CmdProc_Debug takes nothing returns nothing
     local integer eventArgs = Cmd_GetEventArgs()
     if CmdMatch("component.view", 1, eventArgs) then
         call CmdDebug_ComponentView()
+    elseif CmdMatch("setlevel", 1, eventArgs) then
+        if List_GetSize(eventArgs) >= 3 then
+            call CmdDebug_SetLevel(S2I(List_GetString(eventArgs, 2)))
+        else
+            call DebugLog(LOG_INFO, "Missing arg <level>")
+        endif
     elseif CmdMatch("help", 1, eventArgs) then
         call CmdDebug_Help()
     else
