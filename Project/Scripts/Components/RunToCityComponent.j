@@ -31,6 +31,7 @@ function RunToCityComponent_Destroy takes nothing returns nothing
 
     call RemoveSavedReal(gObject, self, RunToCityComponent_mPrevX)
     call RemoveSavedReal(gObject, self, RunToCityComponent_mPrevY)
+    call RemoveSavedHandle(gObject, self, RunToCityComponent_mTimer)
     call Object_Free(self)
 endfunction
 
