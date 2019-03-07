@@ -13,6 +13,7 @@ endfunction
 function PlayerMgr_RegisterEnemyForcePlayer takes integer playerId returns nothing
     local integer playerData = PlayerData_Create(playerId)
     set PlayerMgr_gEnemyForcePlayer = playerData
+    call SetPlayerState(Player(playerId), PLAYER_STATE_GIVES_BOUNTY, 1)
 endfunction 
 
 function PlayerMgr_RegisterAllyForcePlayer takes integer playerId returns nothing
