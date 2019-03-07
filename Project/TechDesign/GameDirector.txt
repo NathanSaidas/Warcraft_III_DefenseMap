@@ -1,0 +1,38 @@
+
+
+struct SpawnWaveData
+{
+    mSpawnCount : int
+    mSpawnDelay : real
+    mUnitType : UnitTypeData
+    mWaveBoss : boolean
+}
+
+fn RegisterWave(unitTypeName, isBoss, amount, delay)
+
+fn Start()
+{
+    SetWave(0)
+    QueueWave()
+}
+
+
+fn Update()
+{
+    if WaveTimer <= 0
+    {
+        BeginWaveSpawn(); // Set wave spawning details
+            mCurrentWaveSpawnCount = N;
+            mCurrentWaveSpawnDelay = T;
+            mCurrentWaveUnitType = GetUnitType(WaveDetail);
+            mCurrentWaveBoss = IsBossWave(WaveDetail);
+        SetWave(GetWave() + 1)
+        QueueWave()
+    }    
+
+    if SpawnTimer <= 0 && mCurrentWaveSpawnCount > 0
+    {
+        SpawnWaveUnits()
+        SpawnTimer.Reset(mCurrentWaveSpawnDelay)
+    }
+}

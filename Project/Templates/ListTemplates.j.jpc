@@ -1,0 +1,924 @@
+// PUBLIC:
+function List_GetInt takes integer self, integer index returns integer
+    if not p_List_VerifyAccess(self, index, TYPE_ID_INT ) then
+        return 0
+    endif
+    return LoadInteger(gObject, self, index)
+endfunction
+
+// PUBLIC:
+function List_SetInt takes integer self, integer index, integer value returns nothing
+    if not p_List_VerifyAccess(self, index, TYPE_ID_INT ) then
+        return
+    endif
+    call SaveInteger(gObject, self, index, value)
+endfunction
+
+//PUBLIC:
+function List_AddInt takes integer self, integer value returns nothing
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    if not p_List_VerifyType(self, TYPE_ID_INT ) then
+        return
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size + 1)
+    call SaveInteger(gObject, self, size, value)
+endfunction
+
+//PUBLIC:
+function List_RemoveInt takes integer self, integer index returns nothing
+    local integer i = index
+    local integer size = LoadInteger(gObject, self, p_List_Size) - 1
+    // TypeCheck:
+    if not p_List_VerifyAccess(self, index, TYPE_ID_INT) then
+        return
+    endif
+    // Move down:
+    loop
+        exitwhen i >= size
+        call SaveInteger(gObject, self, i, LoadInteger(gObject, self, i+1))
+        set i = i + 1
+    endloop
+    // Remove:
+    if size >= 0 then
+        call RemoveSavedInteger(gObject, self, size+1)
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size)
+endfunction
+
+//PUBLIC:
+function List_FindInt takes integer self, integer value returns integer
+    local integer i = 0
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    // TypeCheck:
+    if not p_List_VerifyType(self, TYPE_ID_INT) then
+        return INVALID
+    endif
+
+    loop
+        exitwhen i >= size
+        if LoadInteger(gObject, self, i) == value then
+            return i
+        endif
+        set i = i + 1
+    endloop
+
+    return INVALID
+endfunction
+// PUBLIC:
+function List_GetReal takes integer self, integer index returns real
+    if not p_List_VerifyAccess(self, index, TYPE_ID_REAL ) then
+        return 0.0
+    endif
+    return LoadReal(gObject, self, index)
+endfunction
+
+// PUBLIC:
+function List_SetReal takes integer self, integer index, real value returns nothing
+    if not p_List_VerifyAccess(self, index, TYPE_ID_REAL ) then
+        return
+    endif
+    call SaveReal(gObject, self, index, value)
+endfunction
+
+//PUBLIC:
+function List_AddReal takes integer self, real value returns nothing
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    if not p_List_VerifyType(self, TYPE_ID_REAL ) then
+        return
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size + 1)
+    call SaveReal(gObject, self, size, value)
+endfunction
+
+//PUBLIC:
+function List_RemoveReal takes integer self, integer index returns nothing
+    local integer i = index
+    local integer size = LoadInteger(gObject, self, p_List_Size) - 1
+    // TypeCheck:
+    if not p_List_VerifyAccess(self, index, TYPE_ID_REAL) then
+        return
+    endif
+    // Move down:
+    loop
+        exitwhen i >= size
+        call SaveReal(gObject, self, i, LoadReal(gObject, self, i+1))
+        set i = i + 1
+    endloop
+    // Remove:
+    if size >= 0 then
+        call RemoveSavedReal(gObject, self, size+1)
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size)
+endfunction
+
+//PUBLIC:
+function List_FindReal takes integer self, real value returns integer
+    local integer i = 0
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    // TypeCheck:
+    if not p_List_VerifyType(self, TYPE_ID_REAL) then
+        return INVALID
+    endif
+
+    loop
+        exitwhen i >= size
+        if LoadReal(gObject, self, i) == value then
+            return i
+        endif
+        set i = i + 1
+    endloop
+
+    return INVALID
+endfunction
+// PUBLIC:
+function List_GetString takes integer self, integer index returns string
+    if not p_List_VerifyAccess(self, index, TYPE_ID_STRING ) then
+        return ""
+    endif
+    return LoadStr(gObject, self, index)
+endfunction
+
+// PUBLIC:
+function List_SetString takes integer self, integer index, string value returns nothing
+    if not p_List_VerifyAccess(self, index, TYPE_ID_STRING ) then
+        return
+    endif
+    call SaveStr(gObject, self, index, value)
+endfunction
+
+//PUBLIC:
+function List_AddString takes integer self, string value returns nothing
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    if not p_List_VerifyType(self, TYPE_ID_STRING ) then
+        return
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size + 1)
+    call SaveStr(gObject, self, size, value)
+endfunction
+
+//PUBLIC:
+function List_RemoveString takes integer self, integer index returns nothing
+    local integer i = index
+    local integer size = LoadInteger(gObject, self, p_List_Size) - 1
+    // TypeCheck:
+    if not p_List_VerifyAccess(self, index, TYPE_ID_STRING) then
+        return
+    endif
+    // Move down:
+    loop
+        exitwhen i >= size
+        call SaveStr(gObject, self, i, LoadStr(gObject, self, i+1))
+        set i = i + 1
+    endloop
+    // Remove:
+    if size >= 0 then
+        call RemoveSavedString(gObject, self, size+1)
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size)
+endfunction
+
+//PUBLIC:
+function List_FindString takes integer self, string value returns integer
+    local integer i = 0
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    // TypeCheck:
+    if not p_List_VerifyType(self, TYPE_ID_STRING) then
+        return INVALID
+    endif
+
+    loop
+        exitwhen i >= size
+        if LoadStr(gObject, self, i) == value then
+            return i
+        endif
+        set i = i + 1
+    endloop
+
+    return INVALID
+endfunction
+// PUBLIC:
+function List_GetBool takes integer self, integer index returns boolean
+    if not p_List_VerifyAccess(self, index, TYPE_ID_BOOL ) then
+        return false
+    endif
+    return LoadBoolean(gObject, self, index)
+endfunction
+
+// PUBLIC:
+function List_SetBool takes integer self, integer index, boolean value returns nothing
+    if not p_List_VerifyAccess(self, index, TYPE_ID_BOOL ) then
+        return
+    endif
+    call SaveBoolean(gObject, self, index, value)
+endfunction
+
+//PUBLIC:
+function List_AddBool takes integer self, boolean value returns nothing
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    if not p_List_VerifyType(self, TYPE_ID_BOOL ) then
+        return
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size + 1)
+    call SaveBoolean(gObject, self, size, value)
+endfunction
+
+//PUBLIC:
+function List_RemoveBool takes integer self, integer index returns nothing
+    local integer i = index
+    local integer size = LoadInteger(gObject, self, p_List_Size) - 1
+    // TypeCheck:
+    if not p_List_VerifyAccess(self, index, TYPE_ID_BOOL) then
+        return
+    endif
+    // Move down:
+    loop
+        exitwhen i >= size
+        call SaveBoolean(gObject, self, i, LoadBoolean(gObject, self, i+1))
+        set i = i + 1
+    endloop
+    // Remove:
+    if size >= 0 then
+        call RemoveSavedBoolean(gObject, self, size+1)
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size)
+endfunction
+
+//PUBLIC:
+function List_FindBool takes integer self, boolean value returns integer
+    local integer i = 0
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    // TypeCheck:
+    if not p_List_VerifyType(self, TYPE_ID_BOOL) then
+        return INVALID
+    endif
+
+    loop
+        exitwhen i >= size
+        if LoadBoolean(gObject, self, i) == value then
+            return i
+        endif
+        set i = i + 1
+    endloop
+
+    return INVALID
+endfunction
+// PUBLIC:
+function List_GetUnit takes integer self, integer index returns unit
+    if not p_List_VerifyAccess(self, index, TYPE_ID_UNIT ) then
+        return null
+    endif
+    return LoadUnitHandle(gObject, self, index)
+endfunction
+
+// PUBLIC:
+function List_SetUnit takes integer self, integer index, unit value returns nothing
+    if not p_List_VerifyAccess(self, index, TYPE_ID_UNIT ) then
+        return
+    endif
+    call SaveUnitHandle(gObject, self, index, value)
+endfunction
+
+//PUBLIC:
+function List_AddUnit takes integer self, unit value returns nothing
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    if not p_List_VerifyType(self, TYPE_ID_UNIT ) then
+        return
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size + 1)
+    call SaveUnitHandle(gObject, self, size, value)
+endfunction
+
+//PUBLIC:
+function List_RemoveUnit takes integer self, integer index returns nothing
+    local integer i = index
+    local integer size = LoadInteger(gObject, self, p_List_Size) - 1
+    // TypeCheck:
+    if not p_List_VerifyAccess(self, index, TYPE_ID_UNIT) then
+        return
+    endif
+    // Move down:
+    loop
+        exitwhen i >= size
+        call SaveUnitHandle(gObject, self, i, LoadUnitHandle(gObject, self, i+1))
+        set i = i + 1
+    endloop
+    // Remove:
+    if size >= 0 then
+        call RemoveSavedHandle(gObject, self, size+1)
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size)
+endfunction
+
+//PUBLIC:
+function List_FindUnit takes integer self, unit value returns integer
+    local integer i = 0
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    // TypeCheck:
+    if not p_List_VerifyType(self, TYPE_ID_UNIT) then
+        return INVALID
+    endif
+
+    loop
+        exitwhen i >= size
+        if LoadUnitHandle(gObject, self, i) == value then
+            return i
+        endif
+        set i = i + 1
+    endloop
+
+    return INVALID
+endfunction
+// PUBLIC:
+function List_GetEffect takes integer self, integer index returns effect
+    if not p_List_VerifyAccess(self, index, TYPE_ID_EFFECT ) then
+        return null
+    endif
+    return LoadEffectHandle(gObject, self, index)
+endfunction
+
+// PUBLIC:
+function List_SetEffect takes integer self, integer index, effect value returns nothing
+    if not p_List_VerifyAccess(self, index, TYPE_ID_EFFECT ) then
+        return
+    endif
+    call SaveEffectHandle(gObject, self, index, value)
+endfunction
+
+//PUBLIC:
+function List_AddEffect takes integer self, effect value returns nothing
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    if not p_List_VerifyType(self, TYPE_ID_EFFECT ) then
+        return
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size + 1)
+    call SaveEffectHandle(gObject, self, size, value)
+endfunction
+
+//PUBLIC:
+function List_RemoveEffect takes integer self, integer index returns nothing
+    local integer i = index
+    local integer size = LoadInteger(gObject, self, p_List_Size) - 1
+    // TypeCheck:
+    if not p_List_VerifyAccess(self, index, TYPE_ID_EFFECT) then
+        return
+    endif
+    // Move down:
+    loop
+        exitwhen i >= size
+        call SaveEffectHandle(gObject, self, i, LoadEffectHandle(gObject, self, i+1))
+        set i = i + 1
+    endloop
+    // Remove:
+    if size >= 0 then
+        call RemoveSavedHandle(gObject, self, size+1)
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size)
+endfunction
+
+//PUBLIC:
+function List_FindEffect takes integer self, effect value returns integer
+    local integer i = 0
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    // TypeCheck:
+    if not p_List_VerifyType(self, TYPE_ID_EFFECT) then
+        return INVALID
+    endif
+
+    loop
+        exitwhen i >= size
+        if LoadEffectHandle(gObject, self, i) == value then
+            return i
+        endif
+        set i = i + 1
+    endloop
+
+    return INVALID
+endfunction
+// PUBLIC:
+function List_GetObject takes integer self, integer index returns integer
+    if not p_List_VerifyAccess(self, index, TYPE_ID_OBJECT ) then
+        return null
+    endif
+    return LoadInteger(gObject, self, index)
+endfunction
+
+// PUBLIC:
+function List_SetObject takes integer self, integer index, integer value returns nothing
+    if not p_List_VerifyAccess(self, index, TYPE_ID_OBJECT ) then
+        return
+    endif
+    call SaveInteger(gObject, self, index, value)
+endfunction
+
+//PUBLIC:
+function List_AddObject takes integer self, integer value returns nothing
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    if not p_List_VerifyType(self, TYPE_ID_OBJECT ) then
+        return
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size + 1)
+    call SaveInteger(gObject, self, size, value)
+endfunction
+
+//PUBLIC:
+function List_RemoveObject takes integer self, integer index returns nothing
+    local integer i = index
+    local integer size = LoadInteger(gObject, self, p_List_Size) - 1
+    // TypeCheck:
+    if not p_List_VerifyAccess(self, index, TYPE_ID_OBJECT) then
+        return
+    endif
+    // Move down:
+    loop
+        exitwhen i >= size
+        call SaveInteger(gObject, self, i, LoadInteger(gObject, self, i+1))
+        set i = i + 1
+    endloop
+    // Remove:
+    if size >= 0 then
+        call RemoveSavedInteger(gObject, self, size+1)
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size)
+endfunction
+
+//PUBLIC:
+function List_FindObject takes integer self, integer value returns integer
+    local integer i = 0
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    // TypeCheck:
+    if not p_List_VerifyType(self, TYPE_ID_OBJECT) then
+        return INVALID
+    endif
+
+    loop
+        exitwhen i >= size
+        if LoadInteger(gObject, self, i) == value then
+            return i
+        endif
+        set i = i + 1
+    endloop
+
+    return INVALID
+endfunction
+// PUBLIC:
+function List_GetLocation takes integer self, integer index returns location
+    if not p_List_VerifyAccess(self, index, TYPE_ID_LOCATION ) then
+        return null
+    endif
+    return LoadLocationHandle(gObject, self, index)
+endfunction
+
+// PUBLIC:
+function List_SetLocation takes integer self, integer index, location value returns nothing
+    if not p_List_VerifyAccess(self, index, TYPE_ID_LOCATION ) then
+        return
+    endif
+    call SaveLocationHandle(gObject, self, index, value)
+endfunction
+
+//PUBLIC:
+function List_AddLocation takes integer self, location value returns nothing
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    if not p_List_VerifyType(self, TYPE_ID_LOCATION ) then
+        return
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size + 1)
+    call SaveLocationHandle(gObject, self, size, value)
+endfunction
+
+//PUBLIC:
+function List_RemoveLocation takes integer self, integer index returns nothing
+    local integer i = index
+    local integer size = LoadInteger(gObject, self, p_List_Size) - 1
+    // TypeCheck:
+    if not p_List_VerifyAccess(self, index, TYPE_ID_LOCATION) then
+        return
+    endif
+    // Move down:
+    loop
+        exitwhen i >= size
+        call SaveLocationHandle(gObject, self, i, LoadLocationHandle(gObject, self, i+1))
+        set i = i + 1
+    endloop
+    // Remove:
+    if size >= 0 then
+        call RemoveSavedHandle(gObject, self, size+1)
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size)
+endfunction
+
+//PUBLIC:
+function List_FindLocation takes integer self, location value returns integer
+    local integer i = 0
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    // TypeCheck:
+    if not p_List_VerifyType(self, TYPE_ID_LOCATION) then
+        return INVALID
+    endif
+
+    loop
+        exitwhen i >= size
+        if LoadLocationHandle(gObject, self, i) == value then
+            return i
+        endif
+        set i = i + 1
+    endloop
+
+    return INVALID
+endfunction
+// PUBLIC:
+function List_GetRect takes integer self, integer index returns rect
+    if not p_List_VerifyAccess(self, index, TYPE_ID_RECT ) then
+        return null
+    endif
+    return LoadRectHandle(gObject, self, index)
+endfunction
+
+// PUBLIC:
+function List_SetRect takes integer self, integer index, rect value returns nothing
+    if not p_List_VerifyAccess(self, index, TYPE_ID_RECT ) then
+        return
+    endif
+    call SaveRectHandle(gObject, self, index, value)
+endfunction
+
+//PUBLIC:
+function List_AddRect takes integer self, rect value returns nothing
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    if not p_List_VerifyType(self, TYPE_ID_RECT ) then
+        return
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size + 1)
+    call SaveRectHandle(gObject, self, size, value)
+endfunction
+
+//PUBLIC:
+function List_RemoveRect takes integer self, integer index returns nothing
+    local integer i = index
+    local integer size = LoadInteger(gObject, self, p_List_Size) - 1
+    // TypeCheck:
+    if not p_List_VerifyAccess(self, index, TYPE_ID_RECT) then
+        return
+    endif
+    // Move down:
+    loop
+        exitwhen i >= size
+        call SaveRectHandle(gObject, self, i, LoadRectHandle(gObject, self, i+1))
+        set i = i + 1
+    endloop
+    // Remove:
+    if size >= 0 then
+        call RemoveSavedHandle(gObject, self, size+1)
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size)
+endfunction
+
+//PUBLIC:
+function List_FindRect takes integer self, rect value returns integer
+    local integer i = 0
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    // TypeCheck:
+    if not p_List_VerifyType(self, TYPE_ID_RECT) then
+        return INVALID
+    endif
+
+    loop
+        exitwhen i >= size
+        if LoadRectHandle(gObject, self, i) == value then
+            return i
+        endif
+        set i = i + 1
+    endloop
+
+    return INVALID
+endfunction
+// PUBLIC:
+function List_GetTimer takes integer self, integer index returns timer
+    if not p_List_VerifyAccess(self, index, TYPE_ID_TIMER ) then
+        return null
+    endif
+    return LoadTimerHandle(gObject, self, index)
+endfunction
+
+// PUBLIC:
+function List_SetTimer takes integer self, integer index, timer value returns nothing
+    if not p_List_VerifyAccess(self, index, TYPE_ID_TIMER ) then
+        return
+    endif
+    call SaveTimerHandle(gObject, self, index, value)
+endfunction
+
+//PUBLIC:
+function List_AddTimer takes integer self, timer value returns nothing
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    if not p_List_VerifyType(self, TYPE_ID_TIMER ) then
+        return
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size + 1)
+    call SaveTimerHandle(gObject, self, size, value)
+endfunction
+
+//PUBLIC:
+function List_RemoveTimer takes integer self, integer index returns nothing
+    local integer i = index
+    local integer size = LoadInteger(gObject, self, p_List_Size) - 1
+    // TypeCheck:
+    if not p_List_VerifyAccess(self, index, TYPE_ID_TIMER) then
+        return
+    endif
+    // Move down:
+    loop
+        exitwhen i >= size
+        call SaveTimerHandle(gObject, self, i, LoadTimerHandle(gObject, self, i+1))
+        set i = i + 1
+    endloop
+    // Remove:
+    if size >= 0 then
+        call RemoveSavedHandle(gObject, self, size+1)
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size)
+endfunction
+
+//PUBLIC:
+function List_FindTimer takes integer self, timer value returns integer
+    local integer i = 0
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    // TypeCheck:
+    if not p_List_VerifyType(self, TYPE_ID_TIMER) then
+        return INVALID
+    endif
+
+    loop
+        exitwhen i >= size
+        if LoadTimerHandle(gObject, self, i) == value then
+            return i
+        endif
+        set i = i + 1
+    endloop
+
+    return INVALID
+endfunction
+// PUBLIC:
+function List_GetTrigger takes integer self, integer index returns trigger
+    if not p_List_VerifyAccess(self, index, TYPE_ID_TRIGGER ) then
+        return null
+    endif
+    return LoadTriggerHandle(gObject, self, index)
+endfunction
+
+// PUBLIC:
+function List_SetTrigger takes integer self, integer index, trigger value returns nothing
+    if not p_List_VerifyAccess(self, index, TYPE_ID_TRIGGER ) then
+        return
+    endif
+    call SaveTriggerHandle(gObject, self, index, value)
+endfunction
+
+//PUBLIC:
+function List_AddTrigger takes integer self, trigger value returns nothing
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    if not p_List_VerifyType(self, TYPE_ID_TRIGGER ) then
+        return
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size + 1)
+    call SaveTriggerHandle(gObject, self, size, value)
+endfunction
+
+//PUBLIC:
+function List_RemoveTrigger takes integer self, integer index returns nothing
+    local integer i = index
+    local integer size = LoadInteger(gObject, self, p_List_Size) - 1
+    // TypeCheck:
+    if not p_List_VerifyAccess(self, index, TYPE_ID_TRIGGER) then
+        return
+    endif
+    // Move down:
+    loop
+        exitwhen i >= size
+        call SaveTriggerHandle(gObject, self, i, LoadTriggerHandle(gObject, self, i+1))
+        set i = i + 1
+    endloop
+    // Remove:
+    if size >= 0 then
+        call RemoveSavedHandle(gObject, self, size+1)
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size)
+endfunction
+
+//PUBLIC:
+function List_FindTrigger takes integer self, trigger value returns integer
+    local integer i = 0
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    // TypeCheck:
+    if not p_List_VerifyType(self, TYPE_ID_TRIGGER) then
+        return INVALID
+    endif
+
+    loop
+        exitwhen i >= size
+        if LoadTriggerHandle(gObject, self, i) == value then
+            return i
+        endif
+        set i = i + 1
+    endloop
+
+    return INVALID
+endfunction
+// PUBLIC:
+function List_GetQuest takes integer self, integer index returns quest
+    if not p_List_VerifyAccess(self, index, TYPE_ID_QUEST ) then
+        return null
+    endif
+    return LoadQuestHandle(gObject, self, index)
+endfunction
+
+// PUBLIC:
+function List_SetQuest takes integer self, integer index, quest value returns nothing
+    if not p_List_VerifyAccess(self, index, TYPE_ID_QUEST ) then
+        return
+    endif
+    call SaveQuestHandle(gObject, self, index, value)
+endfunction
+
+//PUBLIC:
+function List_AddQuest takes integer self, quest value returns nothing
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    if not p_List_VerifyType(self, TYPE_ID_QUEST ) then
+        return
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size + 1)
+    call SaveQuestHandle(gObject, self, size, value)
+endfunction
+
+//PUBLIC:
+function List_RemoveQuest takes integer self, integer index returns nothing
+    local integer i = index
+    local integer size = LoadInteger(gObject, self, p_List_Size) - 1
+    // TypeCheck:
+    if not p_List_VerifyAccess(self, index, TYPE_ID_QUEST) then
+        return
+    endif
+    // Move down:
+    loop
+        exitwhen i >= size
+        call SaveQuestHandle(gObject, self, i, LoadQuestHandle(gObject, self, i+1))
+        set i = i + 1
+    endloop
+    // Remove:
+    if size >= 0 then
+        call RemoveSavedHandle(gObject, self, size+1)
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size)
+endfunction
+
+//PUBLIC:
+function List_FindQuest takes integer self, quest value returns integer
+    local integer i = 0
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    // TypeCheck:
+    if not p_List_VerifyType(self, TYPE_ID_QUEST) then
+        return INVALID
+    endif
+
+    loop
+        exitwhen i >= size
+        if LoadQuestHandle(gObject, self, i) == value then
+            return i
+        endif
+        set i = i + 1
+    endloop
+
+    return INVALID
+endfunction
+// PUBLIC:
+function List_GetItem takes integer self, integer index returns item
+    if not p_List_VerifyAccess(self, index, TYPE_ID_ITEM ) then
+        return null
+    endif
+    return LoadItemHandle(gObject, self, index)
+endfunction
+
+// PUBLIC:
+function List_SetItem takes integer self, integer index, item value returns nothing
+    if not p_List_VerifyAccess(self, index, TYPE_ID_ITEM ) then
+        return
+    endif
+    call SaveItemHandle(gObject, self, index, value)
+endfunction
+
+//PUBLIC:
+function List_AddItem takes integer self, item value returns nothing
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    if not p_List_VerifyType(self, TYPE_ID_ITEM ) then
+        return
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size + 1)
+    call SaveItemHandle(gObject, self, size, value)
+endfunction
+
+//PUBLIC:
+function List_RemoveItem takes integer self, integer index returns nothing
+    local integer i = index
+    local integer size = LoadInteger(gObject, self, p_List_Size) - 1
+    // TypeCheck:
+    if not p_List_VerifyAccess(self, index, TYPE_ID_ITEM) then
+        return
+    endif
+    // Move down:
+    loop
+        exitwhen i >= size
+        call SaveItemHandle(gObject, self, i, LoadItemHandle(gObject, self, i+1))
+        set i = i + 1
+    endloop
+    // Remove:
+    if size >= 0 then
+        call RemoveSavedHandle(gObject, self, size+1)
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size)
+endfunction
+
+//PUBLIC:
+function List_FindItem takes integer self, item value returns integer
+    local integer i = 0
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    // TypeCheck:
+    if not p_List_VerifyType(self, TYPE_ID_ITEM) then
+        return INVALID
+    endif
+
+    loop
+        exitwhen i >= size
+        if LoadItemHandle(gObject, self, i) == value then
+            return i
+        endif
+        set i = i + 1
+    endloop
+
+    return INVALID
+endfunction
+// PUBLIC:
+function List_GetTextTag takes integer self, integer index returns texttag
+    if not p_List_VerifyAccess(self, index, TYPE_ID_TEXTTAG ) then
+        return null
+    endif
+    return LoadTextTagHandle(gObject, self, index)
+endfunction
+
+// PUBLIC:
+function List_SetTextTag takes integer self, integer index, texttag value returns nothing
+    if not p_List_VerifyAccess(self, index, TYPE_ID_TEXTTAG ) then
+        return
+    endif
+    call SaveTextTagHandle(gObject, self, index, value)
+endfunction
+
+//PUBLIC:
+function List_AddTextTag takes integer self, texttag value returns nothing
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    if not p_List_VerifyType(self, TYPE_ID_TEXTTAG ) then
+        return
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size + 1)
+    call SaveTextTagHandle(gObject, self, size, value)
+endfunction
+
+//PUBLIC:
+function List_RemoveTextTag takes integer self, integer index returns nothing
+    local integer i = index
+    local integer size = LoadInteger(gObject, self, p_List_Size) - 1
+    // TypeCheck:
+    if not p_List_VerifyAccess(self, index, TYPE_ID_TEXTTAG) then
+        return
+    endif
+    // Move down:
+    loop
+        exitwhen i >= size
+        call SaveTextTagHandle(gObject, self, i, LoadTextTagHandle(gObject, self, i+1))
+        set i = i + 1
+    endloop
+    // Remove:
+    if size >= 0 then
+        call RemoveSavedHandle(gObject, self, size+1)
+    endif
+    call SaveInteger(gObject, self, p_List_Size, size)
+endfunction
+
+//PUBLIC:
+function List_FindTextTag takes integer self, texttag value returns integer
+    local integer i = 0
+    local integer size = LoadInteger(gObject, self, p_List_Size)
+    // TypeCheck:
+    if not p_List_VerifyType(self, TYPE_ID_TEXTTAG) then
+        return INVALID
+    endif
+
+    loop
+        exitwhen i >= size
+        if LoadTextTagHandle(gObject, self, i) == value then
+            return i
+        endif
+        set i = i + 1
+    endloop
+
+    return INVALID
+endfunction

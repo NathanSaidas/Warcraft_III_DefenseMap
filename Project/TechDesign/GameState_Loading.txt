@@ -1,0 +1,18 @@
+
+
+fn GameState_Loading_Update() -> void
+{
+    // This state waits for any settings to be set by the host 
+    // then advances to the hero picking stage.
+}
+
+fn GameState_Loading_TransitionOut() -> void
+{
+    // Destroy timer objects:
+    // 
+}
+
+fn GameState_Loading_TransitionIn() -> void
+{
+    // Startup timers:
+}

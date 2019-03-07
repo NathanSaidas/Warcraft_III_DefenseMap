@@ -1,0 +1,1 @@
+"Tools/JassTool.exe" -precompile /project="JassProject.project" /output="JassCompiled.j" /clipboard

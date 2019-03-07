@@ -1,0 +1,43 @@
+
+fn GameState_HeroPick_CmdRepick(PlayerData player) -> void
+{
+
+}
+
+fn GameState_HeroPick_PickHero(UnitData enteringUnit, UnitTypeData heroType) -> void
+{
+
+}
+
+fn GameState_HeroPick_PickDebugHero -> void
+{
+    GameState_HeroPick_PickHero(GetUnitId(enteringUnit), UnitMgr_FindUnitTypeByString("DebugHero"))
+}
+
+fn GameState_HeroPick_Init() -> void
+{
+    // Initialize starting locations:
+
+    RegisterHeroPicker( "DebugHero", gg_rct_DebugHero, function GameState_HeroPick_PickDebugHero )
+}   
+
+fn GameState_HeroPick_TransitionOut() -> void
+{
+    // Give player's who are playing a random hero.
+}
+
+
+fn GameState_HeroPick_TransitionIn() -> void
+{
+    // foreach Player
+    //   Drop items from existing player owned units/hero's
+    //   Destroy existing player owned units/hero's
+    //   Reset player resources
+
+    // CreateHeroPicker if not already created
+}
+
+fn GameState_HeroPick_Update() -> void
+{
+    // Wait a brief period then advance to GS_PLAYING and spawn waves 
+}

@@ -1,0 +1,157 @@
+// notes:
+//   Restructured the code base a bit to spread out some of the work done in 'GameRules'
+//   Implemented the PlayerMgr/UnitMgr to design
+//   Implemented a few game state (Loading/HeroPick /w -repick command)
+//   Registered some basic unit types
+// todo: 
+//   Implement the GameDirector to spawn waves correct
+//   Use the GameState_Playing to drive the GameDirector
+//   Implement GameState_Playing to keep track of lives
+//   Implement Player Hero inventory system
+//   Implement Player resource tracking
+//   Implement Hero revival system
+//
+
+
+struct UnitTypeData;
+struct UnitData;
+struct PlayerData;
+struct PlayerMgr;
+struct UnitMgr;
+
+struct UnitTypeData
+{
+    string mName;
+    int    mTypeId;
+}
+struct UnitData
+{
+    @require           UnitTypeData:
+    @require type-decl PlayerData:
+
+    unit         mHandle;
+    UnitTypeData mTypeData;
+    PlayerData   mPlayerData;
+}
+
+struct PlayerData
+{
+
+    int            mPlayerId;
+    UnitData       mHeroPicker;
+    UnitData       mHero;
+    List<UnitData> mControlledUnits;
+
+    fn IsPlaying() -> bool
+    fn IsHumanPlaying -> bool
+    fn IsHuman() -> bool
+}
+
+struct PlayerMgr
+{
+    @attribute singleton
+    List<PlayerData> gPlayers;
+    PlayerData gEnemyForcePlayer;
+    PlayerData gAllyForcePlayer;
+
+    fn RegisterPlayer(integer playerId) -> void
+    fn RegisterEnemyForcePlayer(integer playerId) -> void
+    fn RegisterAllyForcePlayer(integer playerId) -> void
+
+    fn FindPlayerData(integer playerId) -> PlayerData
+}
+
+struct UnitMgr
+{
+    @attribute singleton
+    List<UnitTypeData> gTypes;
+
+    fn RegisterUnitType(integer typeId, string id) -> UnitTypeData
+    fn FindUnitTypeByString(string id) -> UnitTypeData
+    fn FindUnitTypeById(integer typeId) -> UnitTypeData
+
+    fn CreateUnit(UnitTypeData pType, PlayerData pOwner, real x, real y) -> UnitData
+    fn DestroyUnit(UnitTypeData pUnit) -> void
+}
+
+
+struct GameState_Loading
+{
+    @transition [ Loading -> HeroPick ]
+    @transition [ Success -> Loading ]
+    @transition [ Failed -> Loading ]
+
+    fn Update() -> void
+    fn OnTransitionOut() -> void
+    fn OnTransitionIn() -> void
+}
+
+struct GameState_HeroPick
+{
+    fn Update() -> void
+    fn OnTransitionOut() -> void
+    fn OnTransitionIn() -> void
+}
+
+struct GameState_Playing
+{
+    fn Update() -> void
+    fn OnTransitionOut() -> void
+    fn OnTransitionIn() -> void
+}
+
+struct GameState_Failed
+{
+    fn Update() -> void
+    fn OnTransitionOut() -> void
+    fn OnTransitionIn() -> void
+}
+
+struct GameState_Success
+{
+    fn Update() -> void
+}
+
+struct Game
+{
+    enum State { GS_LOADING, GS_HERO_PICK, GS_PLAYING, GS_FAILED, GS_SUCCESS }
+
+    State               gState;
+    GameState_Loading   gStateLoading;
+    GameState_HeroPick  gStateHeroPick;
+    GameState_Playing   gStatePlaying;
+    GameState_Failed    gStateFailed;
+    GameState_Success   gStateSuccess;
+
+
+    fn PreInit() -> void;
+    fn Init() -> void;
+    fn Update() -> void;
+}
+
+struct GameDirector
+{
+    @attribute singleton
+    List<SpawnWaveData> gWaveData;
+    Table<Unit> gWaveUnits;
+
+    fn Update() -> void; // Update wave spawning.
+
+    fn SpawnWaveUnits() -> void; // Spawns units based on current wave index at each portal. (Or N boss units if BossWave)
+    fn BeginWaveSpawn() -> void; // Spawn N number of units via SpawnWaveUnits
+    fn QueueWave() -> void; // Queues for a wave to spawn
+    fn SetWaveIndex() -> void; // Sets the current wave unit index
+
+    
+}
+
+
+UnitData:GetComponent(COMPONENT_TYPE_ID)
+
+foreach(Component c : mComponents)
+{
+    c:Update()
+}
+
+
+Bosocritie
