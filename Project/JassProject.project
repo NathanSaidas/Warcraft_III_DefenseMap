@@ -21,6 +21,7 @@ Scripts\Game\UnitData_c
 Scripts\Game\UnitMgr_c
 Scripts\Game\PlayerMgr_c
 Scripts\Components\RunToCityComponent
+Scripts\Components\PlayerHeroComponent
 Scripts\Game\GameDirector_c
 Scripts\Game\GameState_Loading_h
 Scripts\Game\GameState_Loading_c

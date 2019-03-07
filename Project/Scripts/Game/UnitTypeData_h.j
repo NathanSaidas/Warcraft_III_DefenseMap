@@ -3,8 +3,12 @@
 globals
     constant integer UnitTypeData_mName = 0
     constant integer UnitTypeData_mTypeId = 1
+    constant integer UnitTypeData_mInitCallback = 2
 
-    constant integer UnitTypeData_MAX_MEMBER = 2
+    constant integer UnitTypeData_MAX_MEMBER = 3
+
+    integer UnitTypeData_gArg_Init_typeData = INVALID
+    integer UnitTypeData_gArg_Init_unitData = INVALID
 endglobals
 
 function UnitTypeData_Create takes string name, integer id returns integer
@@ -15,6 +19,7 @@ function UnitTypeData_Create takes string name, integer id returns integer
     call SaveStr(gObject, self, p_Object_Name, name)
     call SaveStr(gObject, self, UnitTypeData_mName, name)
     call SaveInteger(gObject, self, UnitTypeData_mTypeId, id)
+    call SaveTriggerHandle(gObject, self, UnitTypeData_mInitCallback, null)
     return self
 endfunction
 

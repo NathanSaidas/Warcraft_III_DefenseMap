@@ -60,6 +60,9 @@ function UnitMgr_CreateUnit takes integer typeData, integer playerOwner, real x,
 
     // Link Player
     call List_AddObject(LoadInteger(gObject, playerOwner, PlayerData_mControlledUnits), unitData)
+
+    // Call Custom Init Func
+    call UnitTypeData_Init(typeData, unitData)
     return unitData
 endfunction
 
