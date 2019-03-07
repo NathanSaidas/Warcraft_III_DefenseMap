@@ -34,8 +34,11 @@ function GameDirector_PreInit takes nothing returns nothing
     set GameDirector_gTargetX = GetRectCenterX(gg_rct_WaveTarget)
     set GameDirector_gTargetY = GetRectCenterY(gg_rct_WaveTarget)
 
-    call GameDirector_RegisterWave("TestWaveUnit", false, 3, 1.75)
-    call GameDirector_RegisterWave("TestWaveUnit2", false, 3, 1.75)
+    // call GameDirector_RegisterWave("TestWaveUnit", false, 3, 1.75)
+    // call GameDirector_RegisterWave("TestWaveUnit2", false, 3, 1.75)
+
+    call GameDirector_RegisterWave("Gnoll", false, 3, 1.75)
+
 
     if CONFIG_GAME_ENABLE_LOGGING then
         call DebugLog(LOG_INFO, "GameDirectorRegister: Registered " + I2S(GameDirector_gSpawnWaveData_mSize) + " waves")

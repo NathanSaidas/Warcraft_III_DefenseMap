@@ -37,6 +37,11 @@ function UnitMgr_PreInit takes nothing returns nothing
     call UnitMgr_RegisterUnitType('h000',"TestWaveUnit")
     call UnitMgr_RegisterUnitType('h001',"TestWaveUnit2")
 
+    call UnitMgr_RegisterUnitType('H004', "Caster")
+
+
+    call UnitMgr_RegisterUnitType('h005', "Gnoll")
+
 
     set UnitMgr_gTypes_mSize = List_GetSize(UnitMgr_gTypes)
 

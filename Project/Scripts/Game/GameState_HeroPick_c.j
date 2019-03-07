@@ -90,6 +90,10 @@ function GameState_HeroPick_SelectDebugHero takes nothing returns nothing
     call GameState_HeroPick_SelectHero("DebugHero", GetEnteringUnit())
 endfunction
 
+function GameState_HeroPick_SelectCaster takes nothing returns nothing
+    call GameState_HeroPick_SelectHero("Caster", GetEnteringUnit())
+endfunction
+
 function GameState_HeroPick_PreInit takes nothing returns nothing
     // Initialize starting locations:
 
@@ -99,6 +103,7 @@ function GameState_HeroPick_PreInit takes nothing returns nothing
     set GameState_HeroPick_gHeroSpawnY = GetRectCenterY(gg_rct_HeroPickSpawn)
     set GameState_HeroPick_gHeroPickerType = UnitMgr_FindUnitTypeByString("HeroPicker")
     call GameState_HeroPick_RegisterHeroPicker(gg_rct_HeroPickDebugHero, function GameState_HeroPick_SelectDebugHero)
+    call GameState_HeroPick_RegisterHeroPicker(gg_rct_HeroPickCaster, function GameState_HeroPick_SelectCaster)
 
 endfunction
 
