@@ -73,7 +73,7 @@ function GameDirector_QueueWave takes nothing returns nothing
         set GameDirector_gWaveTimerDialog = CreateTimerDialog(GameDirector_gWaveTimer)
     endif
 
-    call TimerStart(GameDirector_gWaveTimer, 15.0, false, null)
+    call TimerStart(GameDirector_gWaveTimer, 45.0, false, null)
     call TimerDialogSetTitle(GameDirector_gWaveTimerDialog, "Next Wave:")
     call TimerDialogDisplay(GameDirector_gWaveTimerDialog, true)
 endfunction

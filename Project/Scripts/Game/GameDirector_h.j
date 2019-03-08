@@ -20,7 +20,7 @@ globals
 
     integer array GameDirector_gWaveUnits
     integer       GameDirector_gWaveUnits_mSize = 0
-    integer       GameDirector_gMaxUnit = 12
+    integer       GameDirector_gMaxUnit = 150
 
     boolean GameDirector_gRunning = false
 endglobals

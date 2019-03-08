@@ -38,6 +38,12 @@ function GameDirector_PreInit takes nothing returns nothing
     // call GameDirector_RegisterWave("TestWaveUnit2", false, 3, 1.75)
 
     call GameDirector_RegisterWave("Gnoll", false, 3, 1.75)
+    call GameDirector_RegisterWave("Kobold", false, 3, 1.75)
+    call GameDirector_RegisterWave("Troll", false, 3, 1.75)
+    call GameDirector_RegisterWave("Gnoll Poacher", false, 3, 1.75)
+    call GameDirector_RegisterWave("Kobold Miner", false, 3, 1.75)
+    call GameDirector_RegisterWave("Troll Axe Thrower", false, 3, 1.75)
+
 
 
     if CONFIG_GAME_ENABLE_LOGGING then

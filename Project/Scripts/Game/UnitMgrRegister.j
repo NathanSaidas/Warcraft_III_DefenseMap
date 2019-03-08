@@ -10,9 +10,7 @@ function UnitMgr_RegisterInit takes integer unitTypeData, code callback returns 
     return unitTypeData
 endfunction
 
-function UnitData_DebugHero_Create takes nothing returns nothing
-    local integer unitTypeData = UnitTypeData_gArg_Init_typeData
-    local integer unitData = UnitTypeData_gArg_Init_unitData
+function UnitMgr_AddHeroComponents takes integer unitTypeData, integer unitData returns nothing
     local integer component = INVALID
 
     call DebugLog(LOG_INFO, "UnitMgrRegister: UnitData_DebugHero_Create")
@@ -28,6 +26,18 @@ function UnitData_DebugHero_Create takes nothing returns nothing
     endif
 endfunction
 
+function UnitData_DebugHero_Create takes nothing returns nothing
+    local integer unitTypeData = UnitTypeData_gArg_Init_typeData
+    local integer unitData = UnitTypeData_gArg_Init_unitData
+    call UnitMgr_AddHeroComponents(unitTypeData, unitData)
+endfunction
+
+function UnitData_Caster_Create takes nothing returns nothing
+    local integer unitTypeData = UnitTypeData_gArg_Init_typeData
+    local integer unitData = UnitTypeData_gArg_Init_unitData
+    call UnitMgr_AddHeroComponents(unitTypeData, unitData)
+endfunction
+
 function UnitMgr_PreInit takes nothing returns nothing
     set UnitMgr_gTypes = List_Create(TYPE_ID_UNIT_TYPE_DATA)
 
@@ -37,10 +47,16 @@ function UnitMgr_PreInit takes nothing returns nothing
     call UnitMgr_RegisterUnitType('h000',"TestWaveUnit")
     call UnitMgr_RegisterUnitType('h001',"TestWaveUnit2")
 
-    call UnitMgr_RegisterUnitType('H004', "Caster")
+    call UnitMgr_RegisterInit(UnitMgr_RegisterUnitType('H004', "Caster"), function UnitData_Caster_Create)
 
 
     call UnitMgr_RegisterUnitType('h005', "Gnoll")
+    call UnitMgr_RegisterUnitType('h006', "Kobold")
+    call UnitMgr_RegisterUnitType('h007', "Troll")
+    call UnitMgr_RegisterUnitType('h008', "Gnoll Poacher")
+    call UnitMgr_RegisterUnitType('h009', "Kobold Miner")
+    call UnitMgr_RegisterUnitType('h00A', "Troll Axe Thrower")
+
 
 
     set UnitMgr_gTypes_mSize = List_GetSize(UnitMgr_gTypes)
