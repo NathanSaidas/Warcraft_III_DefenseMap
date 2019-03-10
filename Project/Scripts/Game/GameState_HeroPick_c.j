@@ -12,6 +12,7 @@ function GameState_HeroPick_SelectHero takes string typeName, unit enteringUnit 
     local integer unitData = INVALID
     local integer unitTypeData = INVALID
     local integer mHero = INVALID
+    local integer mPlayerId = INVALID
 
     set unitTypeData = UnitMgr_FindUnitTypeByString(typeName)
     if IsNull(unitTypeData) then
@@ -46,6 +47,11 @@ function GameState_HeroPick_SelectHero takes string typeName, unit enteringUnit 
 
     call UnitMgr_DestroyUnit(LoadInteger(gObject, playerData, PlayerData_mHeroPicker))
     call SaveInteger(gObject, playerData, PlayerData_mHeroPicker, INVALID)
+
+    set mPlayerId = LoadInteger(gObject, playerData, PlayerData_mPlayerId)
+    call SetPlayerStateBJ(Player(mPlayerId), PLAYER_STATE_RESOURCE_GOLD, 500)
+    call SetPlayerStateBJ(Player(mPlayerId), PLAYER_STATE_RESOURCE_LUMBER, 0)
+
 endfunction
 
 function GameState_HeroPick_CreateHeroPicker takes integer playerData returns nothing
@@ -142,7 +148,7 @@ function GameState_HeroPick_TransitionIn takes nothing returns nothing
     if CONFIG_GAME_FAST_START then
         call TimerStart(GameState_HeroPick_gTimer, 15.0, false, null)
     else
-        call TimerStart(GameState_HeroPick_gTimer, 45.0, false, null)
+        call TimerStart(GameState_HeroPick_gTimer, 120.0, false, null)
     endif
     set GameState_HeroPick_gTimerDialog = CreateTimerDialog(GameState_HeroPick_gTimer)
     call TimerDialogSetTitle(GameState_HeroPick_gTimerDialog, "Hero Pick:")

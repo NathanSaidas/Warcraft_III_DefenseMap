@@ -38,7 +38,7 @@ globals
     constant boolean CONFIG_OBJECT_ENABLE_LOGGING = false
     constant boolean CONFIG_THREAD_ENABLE_LOGGING = true
     constant boolean CONFIG_GAME_ENABLE_LOGGING = true
-    constant boolean CONFIG_GAME_FAST_START = true
+    constant boolean CONFIG_GAME_FAST_START = false
 endglobals
 
 // ============================================================================================

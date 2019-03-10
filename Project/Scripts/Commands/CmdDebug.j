@@ -64,6 +64,10 @@ function CmdProc_Debug takes nothing returns nothing
         endif
     elseif CmdMatch("help", 1, eventArgs) then
         call CmdDebug_Help()
+    elseif CmdMatch("fastpick", 1, eventArgs) then
+        if gGameState == GS_HERO_PICK and TimerGetRemaining(GameState_HeroPick_gTimer) > 15.0 then
+            call TimerStart(GameState_HeroPick_gTimer, 15.0, false, null)
+        endif
     else
         call CmdDebug_Help()
     endif
