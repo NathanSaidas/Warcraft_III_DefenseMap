@@ -1,0 +1,5 @@
+|cFF1EFF00[Magi Crown]|r
+ +<A00B,DataB1> Intellect 
+ +<A00C,DataA1> Mana 
+ +<A00D,DataA1> Armor
+

@@ -1,0 +1,6 @@
+|cFF1EFF00[Brill]|r
+ +<A00N,DataA1> Damage
+ +<A00K,DataB1> Intellect 
+ +<A00L,DataA1> Mana 
+ +<A00M,DataA1> Mana Regen
+

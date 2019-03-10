@@ -1,0 +1,7 @@
+Item Colors:
+
+|cFFFFFFFFCommon|r
+|cFF1EFF00Uncommon|r
+|cFF0070DDRare|r
+|cFFA335EEPurple|r
+

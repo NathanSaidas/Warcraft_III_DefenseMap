@@ -1,0 +1,5 @@
+|cFF1EFF00[Spellbook]|r
+ +<A00G,DataA1> Damage 
+ +<A00E,DataA1> Mana 
+ +<A00F,DataA1> Mana Regen
+

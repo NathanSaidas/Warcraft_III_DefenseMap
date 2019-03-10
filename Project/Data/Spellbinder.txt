@@ -1,0 +1,5 @@
+|cFF1EFF00[Spellbinder]|r
+ +<A00H,DataB1> Intellect 
+ +<A00I,DataA1> Mana 
+ +<A00J,DataA1> Mana Regen
+

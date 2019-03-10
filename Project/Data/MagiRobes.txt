@@ -1,0 +1,4 @@
+|cFF1EFF00[Magi Robes]|r
+ +<A009,DataB1> Intellect 
+ +<A00A,DataA1> Armor 
+
