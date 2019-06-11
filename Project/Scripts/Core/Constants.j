@@ -39,6 +39,9 @@ globals
     constant boolean CONFIG_THREAD_ENABLE_LOGGING = true
     constant boolean CONFIG_GAME_ENABLE_LOGGING = true
     constant boolean CONFIG_GAME_FAST_START = false
+
+    constant boolean CONFIG_DEFENSE_MAP = false
+    constant boolean CONFIG_SIEGE_RACER_MAP = true
 endglobals
 
 // ============================================================================================

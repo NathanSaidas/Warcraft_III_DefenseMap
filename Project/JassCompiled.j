@@ -41,7 +41,10 @@ globals
     constant boolean CONFIG_OBJECT_ENABLE_LOGGING = false
     constant boolean CONFIG_THREAD_ENABLE_LOGGING = true
     constant boolean CONFIG_GAME_ENABLE_LOGGING = true
-    constant boolean CONFIG_GAME_FAST_START = true
+    constant boolean CONFIG_GAME_FAST_START = false
+
+    constant boolean CONFIG_DEFENSE_MAP = false
+    constant boolean CONFIG_SIEGE_RACER_MAP = true
 endglobals
 
 // ============================================================================================
@@ -517,7 +520,9 @@ globals
     constant integer TYPE_ID_UNIT_DATA = 8
     constant integer TYPE_ID_SPAWN_WAVE_DATA = 9
     constant integer TYPE_ID_RUN_TO_CITY_COMPONENT = 10
-    constant integer TYPE_ID_MAX = 11
+    constant integer TYPE_ID_PLAYER_HERO_COMPONENT = 11
+    constant integer TYPE_ID_MONITOR_UNIT_LIFE_COMPONENT = 12
+    constant integer TYPE_ID_MAX = 13
 endglobals
 
 function Object_RegisterTypes takes nothing returns nothing
@@ -532,6 +537,8 @@ function Object_RegisterTypes takes nothing returns nothing
     call ps_Object_RegisterType(TYPE_ID_UNIT_DATA, "UnitData", 500, 500)
     call ps_Object_RegisterType(TYPE_ID_SPAWN_WAVE_DATA, "SpawnWaveData", 100, 100)
     call ps_Object_RegisterType(TYPE_ID_RUN_TO_CITY_COMPONENT, "RunToCityComponent", 1000, 1000)
+    call ps_Object_RegisterType(TYPE_ID_PLAYER_HERO_COMPONENT, "PlayerHeroComponent", 1000, 1000)
+    call ps_Object_RegisterType(TYPE_ID_MONITOR_UNIT_LIFE_COMPONENT, "MonitorUnitLifeComponent", 1000, 1000)
 endfunction
 
 function Object_PreInit takes nothing returns nothing
@@ -2319,8 +2326,12 @@ endfunction// ______________________________________________
 globals
     constant integer UnitTypeData_mName = 0
     constant integer UnitTypeData_mTypeId = 1
+    constant integer UnitTypeData_mInitCallback = 2
 
-    constant integer UnitTypeData_MAX_MEMBER = 2
+    constant integer UnitTypeData_MAX_MEMBER = 3
+
+    integer UnitTypeData_gArg_Init_typeData = INVALID
+    integer UnitTypeData_gArg_Init_unitData = INVALID
 endglobals
 
 function UnitTypeData_Create takes string name, integer id returns integer
@@ -2331,6 +2342,7 @@ function UnitTypeData_Create takes string name, integer id returns integer
     call SaveStr(gObject, self, p_Object_Name, name)
     call SaveStr(gObject, self, UnitTypeData_mName, name)
     call SaveInteger(gObject, self, UnitTypeData_mTypeId, id)
+    call SaveTriggerHandle(gObject, self, UnitTypeData_mInitCallback, null)
     return self
 endfunction
 
@@ -2559,7 +2571,7 @@ globals
 
     integer array GameDirector_gWaveUnits
     integer       GameDirector_gWaveUnits_mSize = 0
-    integer       GameDirector_gMaxUnit = 12
+    integer       GameDirector_gMaxUnit = 150
 
     boolean GameDirector_gRunning = false
 endglobals// ______________________________________________
@@ -2577,6 +2589,27 @@ function UnitTypeData_GetId takes integer self returns integer
         return 0
     endif
     return LoadInteger(gObject, self, UnitTypeData_mTypeId)
+endfunction
+
+function UnitTypeData_GetInitCallback takes integer self returns trigger
+    if not SelfCheck(self, TYPE_ID_UNIT_TYPE_DATA, "UnitTypeData_GetInitCallback") then
+        return null
+    endif
+    return LoadTriggerHandle(gObject, self, UnitTypeData_mInitCallback)
+endfunction
+
+function UnitTypeData_Init takes integer self, integer unitData returns nothing
+    local trigger mInitCallback = null
+    if not SelfCheck(self, TYPE_ID_UNIT_TYPE_DATA, "UnitTypeData_Init") then
+        return
+    endif 
+    set UnitTypeData_gArg_Init_typeData = self
+    set UnitTypeData_gArg_Init_unitData = unitData
+    set mInitCallback = LoadTriggerHandle(gObject, self, UnitTypeData_mInitCallback)
+    if mInitCallback != null then
+        call TriggerExecute(mInitCallback)
+        set mInitCallback = null
+    endif
 endfunction// ______________________________________________
 // Scripts/Game/PlayerData_c
 // ----------------------------------------------
@@ -2637,6 +2670,12 @@ function SetUnitId takes unit unitHandle, integer id returns nothing
     call SetUnitUserData(unitHandle, id + 1)
 endfunction
 
+function UnitData_GetComponents takes integer self returns integer
+    if not SelfCheck(self, TYPE_ID_UNIT_DATA, "UnitData_GetComponents") then
+        return INVALID
+    endif
+    return LoadInteger(gObject, self, UnitData_mComponents)
+endfunction
 
 function UnitData_GetComponent takes integer self, integer typeId returns integer
     local integer i = 0
@@ -2766,6 +2805,9 @@ function UnitMgr_CreateUnit takes integer typeData, integer playerOwner, real x,
 
     // Link Player
     call List_AddObject(LoadInteger(gObject, playerOwner, PlayerData_mControlledUnits), unitData)
+
+    // Call Custom Init Func
+    call UnitTypeData_Init(typeData, unitData)
     return unitData
 endfunction
 
@@ -2808,6 +2850,7 @@ endfunction
 function PlayerMgr_RegisterEnemyForcePlayer takes integer playerId returns nothing
     local integer playerData = PlayerData_Create(playerId)
     set PlayerMgr_gEnemyForcePlayer = playerData
+    call SetPlayerState(Player(playerId), PLAYER_STATE_GIVES_BOUNTY, 1)
 endfunction 
 
 function PlayerMgr_RegisterAllyForcePlayer takes integer playerId returns nothing
@@ -2858,6 +2901,26 @@ function PlayerMgr_ResetPlayers takes nothing returns nothing
         call PlayerMgr_ResetPlayer(PlayerMgr_gPlayers[i])
         set i = i + 1
     endloop
+endfunction
+
+function PlayerMgr_UpdateHeroes takes nothing returns nothing
+    local integer i = 0
+    local integer mHero = INVALID
+    local integer mPlayerData = INVALID
+    loop
+        exitwhen i >= PlayerMgr_gMaxPlayer
+        set mHero = PlayerData_GetHero(PlayerMgr_gPlayers[i])
+        if not IsNull(mHero) then
+            set mPlayerData = LoadInteger(gObject, mHero, UnitData_mPlayerData)
+            if LoadBoolean(gObject, mHero, UnitData_mQueueDestroy) then
+                call UnitMgr_DestroyUnit(mHero)
+                call SaveInteger(gObject, mPlayerData, PlayerData_mHero, INVALID)
+            else
+                call UnitData_Update(mHero)
+            endif
+        endif
+        set i = i + 1
+    endloop
 endfunction// ______________________________________________
 // Scripts/Components/RunToCityComponent
 // ----------------------------------------------
@@ -2894,6 +2957,7 @@ function RunToCityComponent_Destroy takes nothing returns nothing
 
     call RemoveSavedReal(gObject, self, RunToCityComponent_mPrevX)
     call RemoveSavedReal(gObject, self, RunToCityComponent_mPrevY)
+    call RemoveSavedHandle(gObject, self, RunToCityComponent_mTimer)
     call Object_Free(self)
 endfunction
 
@@ -2920,6 +2984,142 @@ function RunToCityComponent_Update takes nothing returns nothing
 endfunction
 
 // ______________________________________________
+// Scripts/Components/PlayerHeroComponent
+// ----------------------------------------------
+
+// When the player dies start a timer and revive them.
+//
+// DECLARE_TYPE(PlayerHeroComponent,1000,1000)
+globals
+    constant integer PlayerHeroComponent_mTimer = Component_MAX_MEMBER + 0
+    constant integer PlayerHeroComponent_mTimerDialog = Component_MAX_MEMBER + 1
+
+    constant integer PlayerHeroComponent_MAX_MEMBER = Component_MAX_MEMBER + 2
+
+    code PlayerHeroComponent_gDestroyFunc = null
+    code PlayerHeroComponent_gUpdateFunc = null
+endglobals
+
+function PlayerHeroComponent_Create takes nothing returns integer
+    local integer self = Object_Allocate(TYPE_ID_PLAYER_HERO_COMPONENT, PlayerHeroComponent_MAX_MEMBER)
+    if IsNull(self) then
+        return self
+    endif
+
+    call Component_Derive(self, PlayerHeroComponent_gDestroyFunc, PlayerHeroComponent_gUpdateFunc)
+    call SaveTimerHandle(gObject, self, PlayerHeroComponent_mTimer, null)
+    call SaveTimerDialogHandle(gObject, self, PlayerHeroComponent_mTimerDialog, null)
+
+    return self
+endfunction
+
+function PlayerHeroComponent_Destroy takes nothing returns nothing
+    local integer self = Component_gDestructorArg_Self
+    local timer mTimer = LoadTimerHandle(gObject, self, PlayerHeroComponent_mTimer)
+    local timerdialog mTimerDialog = LoadTimerDialogHandle(gObject, self, PlayerHeroComponent_mTimerDialog)
+
+    if mTimer != null then
+        call DestroyTimer(mTimer)
+        set mTimer = null
+    endif
+
+    if mTimerDialog != null then
+        call DestroyTimerDialog(mTimerDialog)
+        set mTimer = null
+    endif
+
+    call RemoveSavedHandle(gObject, self, PlayerHeroComponent_mTimer)
+    call RemoveSavedHandle(gObject, self, PlayerHeroComponent_mTimerDialog)
+    call Object_Free(self)
+endfunction
+
+function PlayerHeroComponent_GetRespawnTime takes integer self returns real
+    return 5.0
+endfunction
+
+function PlayerHeroComponent_Update takes nothing returns nothing
+    local integer self = Component_gUpdateArg_Self
+    local integer mUnitData = LoadInteger(gObject, self, Component_mParent)
+    local unit mUnit = LoadUnitHandle(gObject, mUnitData, UnitData_mHandle)
+    local timer mTimer = null
+    local timerdialog mTimerDialog = null
+
+    if IsUnitDeadBJ(mUnit) then
+        set mTimer = LoadTimerHandle(gObject, self, PlayerHeroComponent_mTimer)
+        if mTimer == null then
+            call DebugLog(LOG_INFO, "Detected hero unit death")
+            set mTimer = CreateTimer()
+            call TimerStart(mTimer, PlayerHeroComponent_GetRespawnTime(self), false, null)
+            call SaveTimerHandle(gObject, self, PlayerHeroComponent_mTimer, mTimer)
+            set mTimerDialog = CreateTimerDialog(mTimer)
+            call TimerDialogSetTitle(mTimerDialog, "Hero Respawn:")
+            call TimerDialogDisplay(mTimerDialog, true)
+            call SaveTimerDialogHandle(gObject, self, PlayerHeroComponent_mTimerDialog, mTimerDialog)
+        elseif TimerGetRemaining(mTimer) <= 0.0 then
+            set mTimerDialog = LoadTimerDialogHandle(gObject, self, PlayerHeroComponent_mTimerDialog)
+            call DestroyTimerDialog(mTimerDialog)
+            call SaveTimerDialogHandle(gObject, self, PlayerHeroComponent_mTimerDialog, null)
+            call ReviveHero(mUnit, GetRectCenterX(gg_rct_HeroRespawn) , GetRectCenterY(gg_rct_HeroRespawn), true)
+            call DestroyTimer(mTimer)
+            call SaveTimerHandle(gObject, self, PlayerHeroComponent_mTimer, null)
+            call SetCameraPositionForPlayer(GetOwningPlayer(mUnit), GetRectCenterX(gg_rct_HeroRespawn) , GetRectCenterY(gg_rct_HeroRespawn))
+        endif
+    endif
+    
+    set mTimer = null
+    set mTimerDialog = null
+    set mUnit = null
+endfunction
+// ______________________________________________
+// Scripts/Components/MonitorUnitLifeComponent
+// ----------------------------------------------
+// DECLARE_TYPE(MonitorUnitLifeComponent, 1000, 1000)
+globals
+    constant integer MonitorUnitLifeComponent_mDeathTimer = Component_MAX_MEMBER + 0
+    constant integer MonitorUnitLifeComponent_MAX_MEMBER = Component_MAX_MEMBER + 1
+
+    code MonitorUnitLifeComponent_gDestroyFunc = null
+    code MonitorUnitLifeComponent_gUpdateFunc = null
+endglobals
+
+function MonitorUnitLifeComponent_Create takes nothing returns integer
+    local integer self = Object_Allocate(TYPE_ID_MONITOR_UNIT_LIFE_COMPONENT, MonitorUnitLifeComponent_MAX_MEMBER)
+    if IsNull(self) then
+        return self
+    endif
+
+    call Component_Derive(self, MonitorUnitLifeComponent_gDestroyFunc, MonitorUnitLifeComponent_gUpdateFunc)
+    call SaveTimerHandle(gObject, self, MonitorUnitLifeComponent_mDeathTimer, null)
+    return self
+endfunction
+
+function MonitorUnitLifeComponent_Destroy takes nothing returns nothing
+    local integer self = Component_gDestructorArg_Self
+    local timer mDeathTimer = LoadTimerHandle(gObject, self, MonitorUnitLifeComponent_mDeathTimer)
+    call DestroyTimer(mDeathTimer)
+    call RemoveSavedHandle(gObject, self, MonitorUnitLifeComponent_mDeathTimer)
+    call Object_Free(self)
+    set mDeathTimer = null
+endfunction
+
+function MonitorUnitLifeComponent_Update takes nothing returns nothing
+    local integer self = Component_gUpdateArg_Self
+    local integer mUnitData = LoadInteger(gObject, self, Component_mParent)
+    local unit mUnit = LoadUnitHandle(gObject, mUnitData, UnitData_mHandle)
+    local timer mDeathTimer = LoadTimerHandle(gObject, self, MonitorUnitLifeComponent_mDeathTimer)
+
+    if IsUnitDeadBJ(mUnit) then
+        if mDeathTimer == null then
+            set mDeathTimer = CreateTimer()
+            call TimerStart(mDeathTimer, 2.0, false, null)
+            call SaveTimerHandle(gObject, self, MonitorUnitLifeComponent_mDeathTimer, mDeathTimer)
+        elseif TimerGetRemaining(mDeathTimer) <= 0.0 then
+            call UnitData_QueueDestroy(mUnitData)
+        endif
+    endif
+    set mUnit = null
+    set mDeathTimer = null
+endfunction// ______________________________________________
 // Scripts/Game/GameDirector_c
 // ----------------------------------------------
 
@@ -2934,18 +3134,26 @@ function GameDirector_SpawnWaveUnit takes integer spawnIndex returns nothing
     local real x = GameDirector_gSpawnX[spawnIndex]
     local real y = GameDirector_gSpawnY[spawnIndex]
     local integer index = 0
-    local integer runToCityComponent = INVALID
+    local integer component = INVALID
     loop
         exitwhen index >= GameDirector_gMaxUnit
         if IsNull(GameDirector_gWaveUnits[index]) then
             set GameDirector_gWaveUnits[index] = UnitMgr_CreateUnit(unitTypeData, playerData, x, y)
 
-            set runToCityComponent = RunToCityComponent_Create()
-            if not IsNull(runToCityComponent) then
-                call UnitData_AddComponent(GameDirector_gWaveUnits[index], runToCityComponent)
+            set component = RunToCityComponent_Create()
+            if not IsNull(component) then
+                call UnitData_AddComponent(GameDirector_gWaveUnits[index], component)
             else
                 call DebugLog(LOG_ERROR, "GameDirector_c: Failed to create RunToCityComponent")
             endif
+
+            set component = MonitorUnitLifeComponent_Create()
+            if not IsNull(component) then
+                call UnitData_AddComponent(GameDirector_gWaveUnits[index], component)
+            else
+                call DebugLog(LOG_ERROR, "GameDirector_c: Failed to create MonitorUnitLifeComponent")
+            endif
+
             set GameDirector_gWaveUnits_mSize = GameDirector_gWaveUnits_mSize + 1
             return
         endif
@@ -2989,7 +3197,7 @@ function GameDirector_QueueWave takes nothing returns nothing
         set GameDirector_gWaveTimerDialog = CreateTimerDialog(GameDirector_gWaveTimer)
     endif
 
-    call TimerStart(GameDirector_gWaveTimer, 15.0, false, null)
+    call TimerStart(GameDirector_gWaveTimer, 45.0, false, null)
     call TimerDialogSetTitle(GameDirector_gWaveTimerDialog, "Next Wave:")
     call TimerDialogDisplay(GameDirector_gWaveTimerDialog, true)
 endfunction
@@ -3074,6 +3282,7 @@ function GameDirector_UpdateUnits takes nothing returns nothing
         exitwhen i >= GameDirector_gMaxUnit
         if not IsNull(GameDirector_gWaveUnits[i]) then
             if LoadBoolean(gObject, GameDirector_gWaveUnits[i], UnitData_mQueueDestroy) then
+                call DebugLog(LOG_INFO, "DestroyWaveUnit")
                 call UnitMgr_DestroyUnit(GameDirector_gWaveUnits[i])
                 set GameDirector_gWaveUnits_mSize = GameDirector_gWaveUnits_mSize - 1
                 set GameDirector_gWaveUnits[i] = INVALID
@@ -3151,6 +3360,7 @@ function GameState_HeroPick_SelectHero takes string typeName, unit enteringUnit 
     local integer unitData = INVALID
     local integer unitTypeData = INVALID
     local integer mHero = INVALID
+    local integer mPlayerId = INVALID
 
     set unitTypeData = UnitMgr_FindUnitTypeByString(typeName)
     if IsNull(unitTypeData) then
@@ -3185,6 +3395,11 @@ function GameState_HeroPick_SelectHero takes string typeName, unit enteringUnit 
 
     call UnitMgr_DestroyUnit(LoadInteger(gObject, playerData, PlayerData_mHeroPicker))
     call SaveInteger(gObject, playerData, PlayerData_mHeroPicker, INVALID)
+
+    set mPlayerId = LoadInteger(gObject, playerData, PlayerData_mPlayerId)
+    call SetPlayerStateBJ(Player(mPlayerId), PLAYER_STATE_RESOURCE_GOLD, 500)
+    call SetPlayerStateBJ(Player(mPlayerId), PLAYER_STATE_RESOURCE_LUMBER, 0)
+
 endfunction
 
 function GameState_HeroPick_CreateHeroPicker takes integer playerData returns nothing
@@ -3229,6 +3444,10 @@ function GameState_HeroPick_SelectDebugHero takes nothing returns nothing
     call GameState_HeroPick_SelectHero("DebugHero", GetEnteringUnit())
 endfunction
 
+function GameState_HeroPick_SelectCaster takes nothing returns nothing
+    call GameState_HeroPick_SelectHero("Caster", GetEnteringUnit())
+endfunction
+
 function GameState_HeroPick_PreInit takes nothing returns nothing
     // Initialize starting locations:
 
@@ -3238,6 +3457,7 @@ function GameState_HeroPick_PreInit takes nothing returns nothing
     set GameState_HeroPick_gHeroSpawnY = GetRectCenterY(gg_rct_HeroPickSpawn)
     set GameState_HeroPick_gHeroPickerType = UnitMgr_FindUnitTypeByString("HeroPicker")
     call GameState_HeroPick_RegisterHeroPicker(gg_rct_HeroPickDebugHero, function GameState_HeroPick_SelectDebugHero)
+    call GameState_HeroPick_RegisterHeroPicker(gg_rct_HeroPickCaster, function GameState_HeroPick_SelectCaster)
 
 endfunction
 
@@ -3276,7 +3496,7 @@ function GameState_HeroPick_TransitionIn takes nothing returns nothing
     if CONFIG_GAME_FAST_START then
         call TimerStart(GameState_HeroPick_gTimer, 15.0, false, null)
     else
-        call TimerStart(GameState_HeroPick_gTimer, 45.0, false, null)
+        call TimerStart(GameState_HeroPick_gTimer, 120.0, false, null)
     endif
     set GameState_HeroPick_gTimerDialog = CreateTimerDialog(GameState_HeroPick_gTimer)
     call TimerDialogSetTitle(GameState_HeroPick_gTimerDialog, "Hero Pick:")
@@ -3335,7 +3555,7 @@ globals
     trigger GameState_Playing_gLifeTrigger = null
 
     integer GameState_Playing_gCurrentLives = 0
-    integer GameState_Playing_gMaxLives = 15
+    integer GameState_Playing_gMaxLives = 300 // Maximum number of lives before game-over
 endglobals// ______________________________________________
 // Scripts/Game/GameState_Failed_c
 // ----------------------------------------------
@@ -3498,11 +3718,21 @@ function Game_DirectorUnitUpdate takes nothing returns nothing
     endloop
 endfunction
 
+function Game_PlayerHeroUpdate takes nothing returns nothing
+    local integer mUpdateThread = Thread_GetDriver("Game_PlayerHeroUpdate")
+    loop
+        call Thread_UpdateTick(mUpdateThread)
+        call PlayerMgr_UpdateHeroes()
+        call Sleep(GAME_DELTA)
+    endloop 
+endfunction
+
 function Game_Update takes nothing returns nothing
     local integer mUpdateThread = Thread_GetDriver("Game_Update")
     local integer mStateThread = INVALID
     local integer mDirectorThread = INVALID
     local integer mDirectorUnitUpdateThread = INVALID
+    local integer mPlayerHeroUpdateThread = INVALID
     
     call Thread_RegisterDriver("Game_UpdateState", function Game_UpdateState)
     set mStateThread = Thread_GetDriver("Game_UpdateState")
@@ -3512,6 +3742,9 @@ function Game_Update takes nothing returns nothing
 
     call Thread_RegisterDriver("Game_DirectorUnitUpdate", function Game_DirectorUnitUpdate)
     set mDirectorUnitUpdateThread = Thread_GetDriver("Game_DirectorUnitUpdate")
+
+    call Thread_RegisterDriver("Game_PlayerHeroUpdate", function Game_PlayerHeroUpdate)
+    set mPlayerHeroUpdateThread = Thread_GetDriver("Game_PlayerHeroUpdate")
 
     loop
         call Thread_UpdateTick(mUpdateThread)
@@ -3527,6 +3760,10 @@ function Game_Update takes nothing returns nothing
 
         if not Thread_IsRunning(mDirectorUnitUpdateThread) then
             call Thread_StartDriver("Game_DirectorUnitUpdate")
+        endif
+
+        if not Thread_IsRunning(mPlayerHeroUpdateThread) then
+            call Thread_StartDriver("Game_PlayerHeroUpdate")
         endif
 
         call Sleep(GAME_DELTA)
@@ -3549,14 +3786,65 @@ function PlayerMgr_PreInit takes nothing returns nothing
 endfunction// ______________________________________________
 // Scripts/Game/UnitMgrRegister
 // ----------------------------------------------
+function UnitMgr_RegisterInit takes integer unitTypeData, code callback returns integer
+    local trigger mInitCallback = null
+    if callback == null then
+        return unitTypeData
+    endif
+    set mInitCallback = CreateTrigger()
+    call TriggerAddAction(mInitCallback, callback)
+    call SaveTriggerHandle(gObject, unitTypeData, UnitTypeData_mInitCallback, mInitCallback)
+    set mInitCallback = null
+    return unitTypeData
+endfunction
+
+function UnitMgr_AddHeroComponents takes integer unitTypeData, integer unitData returns nothing
+    local integer component = INVALID
+
+    call DebugLog(LOG_INFO, "UnitMgrRegister: UnitData_DebugHero_Create")
+    if Invalid(unitTypeData) or Invalid(unitData) then
+        return
+    endif
+
+    set component = PlayerHeroComponent_Create()
+    if not IsNull(component) then
+        call UnitData_AddComponent(unitData, component)
+    else
+        call DebugLog(LOG_ERROR, "UnitMgrRegister: UnitData_DebugHero_Create failed to create component PlayerHeroComponent!")
+    endif
+endfunction
+
+function UnitData_DebugHero_Create takes nothing returns nothing
+    local integer unitTypeData = UnitTypeData_gArg_Init_typeData
+    local integer unitData = UnitTypeData_gArg_Init_unitData
+    call UnitMgr_AddHeroComponents(unitTypeData, unitData)
+endfunction
+
+function UnitData_Caster_Create takes nothing returns nothing
+    local integer unitTypeData = UnitTypeData_gArg_Init_typeData
+    local integer unitData = UnitTypeData_gArg_Init_unitData
+    call UnitMgr_AddHeroComponents(unitTypeData, unitData)
+endfunction
+
 function UnitMgr_PreInit takes nothing returns nothing
     set UnitMgr_gTypes = List_Create(TYPE_ID_UNIT_TYPE_DATA)
 
-    call UnitMgr_RegisterUnitType('H002',"DebugHero")
+    call UnitMgr_RegisterInit(UnitMgr_RegisterUnitType('H002',"DebugHero"), function UnitData_DebugHero_Create)
     call UnitMgr_RegisterUnitType('h003',"HeroPicker")
 
     call UnitMgr_RegisterUnitType('h000',"TestWaveUnit")
     call UnitMgr_RegisterUnitType('h001',"TestWaveUnit2")
+
+    call UnitMgr_RegisterInit(UnitMgr_RegisterUnitType('H004', "Caster"), function UnitData_Caster_Create)
+
+
+    call UnitMgr_RegisterUnitType('h005', "Gnoll")
+    call UnitMgr_RegisterUnitType('h006', "Kobold")
+    call UnitMgr_RegisterUnitType('h007', "Troll")
+    call UnitMgr_RegisterUnitType('h008', "Gnoll Poacher")
+    call UnitMgr_RegisterUnitType('h009', "Kobold Miner")
+    call UnitMgr_RegisterUnitType('h00A', "Troll Axe Thrower")
+
 
 
     set UnitMgr_gTypes_mSize = List_GetSize(UnitMgr_gTypes)
@@ -3570,6 +3858,10 @@ endfunction// ______________________________________________
 function Component_PreInit takes nothing returns nothing
     set RunToCityComponent_gDestroyFunc = function RunToCityComponent_Destroy
     set RunToCityComponent_gUpdateFunc = function RunToCityComponent_Update
+    set PlayerHeroComponent_gDestroyFunc = function PlayerHeroComponent_Destroy
+    set PlayerHeroComponent_gUpdateFunc = function PlayerHeroComponent_Update
+    set MonitorUnitLifeComponent_gDestroyFunc = function MonitorUnitLifeComponent_Destroy
+    set MonitorUnitLifeComponent_gUpdateFunc = function MonitorUnitLifeComponent_Update
 endfunction// ______________________________________________
 // Scripts/Game/GameDirectorRegister
 // ----------------------------------------------
@@ -3609,8 +3901,17 @@ function GameDirector_PreInit takes nothing returns nothing
     set GameDirector_gTargetX = GetRectCenterX(gg_rct_WaveTarget)
     set GameDirector_gTargetY = GetRectCenterY(gg_rct_WaveTarget)
 
-    call GameDirector_RegisterWave("TestWaveUnit", false, 3, 1.75)
-    call GameDirector_RegisterWave("TestWaveUnit2", false, 3, 1.75)
+    // call GameDirector_RegisterWave("TestWaveUnit", false, 3, 1.75)
+    // call GameDirector_RegisterWave("TestWaveUnit2", false, 3, 1.75)
+
+    call GameDirector_RegisterWave("Gnoll", false, 10, 1.75)
+    call GameDirector_RegisterWave("Kobold", false, 10, 1.75)
+    call GameDirector_RegisterWave("Troll", false, 10, 1.75)
+    call GameDirector_RegisterWave("Gnoll Poacher", false, 10, 1.75)
+    call GameDirector_RegisterWave("Kobold Miner", false, 10, 1.75)
+    call GameDirector_RegisterWave("Troll Axe Thrower", false, 10, 1.75)
+
+
 
     if CONFIG_GAME_ENABLE_LOGGING then
         call DebugLog(LOG_INFO, "GameDirectorRegister: Registered " + I2S(GameDirector_gSpawnWaveData_mSize) + " waves")
@@ -3623,20 +3924,26 @@ function GameState_PreInit takes nothing returns nothing
 
     call PlayerMgr_PreInit()
     call UnitMgr_PreInit()
-    call GameDirector_PreInit()
+    if CONFIG_DEFENSE_MAP then
+        call GameDirector_PreInit()
+    endif
     call Component_PreInit()
 
-    call GameState_HeroPick_PreInit()
-    call GameState_Playing_PreInit()
+    if CONFIG_DEFENSE_MAP then
+        call GameState_HeroPick_PreInit()
+        call GameState_Playing_PreInit()
+    endif
 endfunction
 
 function GameState_Init takes nothing returns nothing
     call DebugLog(LOG_INFO, "GameState_Init")
 
-    call GameState_HeroPick_Init()
+    if CONFIG_DEFENSE_MAP then
+        call GameState_HeroPick_Init()
 
-    call Thread_RegisterDriver("Game_Update", function Game_Update)
-    call Thread_StartDriver("Game_Update")
+        call Thread_RegisterDriver("Game_Update", function Game_Update)
+        call Thread_StartDriver("Game_Update")
+    endif
 endfunction// ______________________________________________
 // Scripts/Commands/CmdGame
 // ----------------------------------------------
@@ -3664,6 +3971,88 @@ endfunction
 
 function CmdGame_Init takes nothing returns nothing
     call Cmd_RegisterHandler("-game", function CmdProc_Game)
+endfunction// ______________________________________________
+// Scripts/Commands/CmdDebug
+// ----------------------------------------------
+// -debug component.view
+// -debug 
+
+function CmdDebug_GetSelectedUnits takes player p returns integer
+    local group selectedUnits = GetUnitsSelectedAll(p)
+    local integer unitData = GetUnitId(FirstOfGroup(selectedUnits))
+    call DestroyGroup(selectedUnits)
+    set selectedUnits = null
+    return unitData
+endfunction
+
+function CmdDebug_ComponentView takes nothing returns nothing
+    local integer unitData = CmdDebug_GetSelectedUnits(Cmd_GetEventPlayer())
+    local integer mComponents = INVALID
+    local integer mComponents_mSize = 0
+    local integer i = 0
+    local integer component = INVALID
+    if IsNull(unitData) then
+        call DebugLog(LOG_INFO, "Missing unit data")
+        return
+    endif
+    call DebugLog(LOG_INFO, "Showing Components for [" + I2S(unitData) + "]")
+    set mComponents = UnitData_GetComponents(unitData)
+    set mComponents_mSize = List_GetSize(mComponents)
+    loop
+        exitwhen i >= mComponents_mSize
+        set component = List_GetObject(mComponents, i)
+        call DebugLog(LOG_INFO, "[" + I2S(component) + "] " + Object_GetTypeName(Object_GetTypeId(component)))
+        set i = i + 1
+    endloop
+
+endfunction
+
+function CmdDebug_SetLevel takes integer level returns nothing
+    local integer unitData = CmdDebug_GetSelectedUnits(Cmd_GetEventPlayer())
+    local unit u = null
+
+    if IsNull(unitData) then
+        return
+    endif
+    
+    call DebugLog(LOG_INFO, "Set Level to " + I2S(level))
+    if UnitTypeData_IsHero(LoadInteger(gObject, unitData, UnitData_mTypeData)) then
+        set u = LoadUnitHandle(gObject, unitData, UnitData_mHandle)
+        call SetHeroLevel(u, level, true)
+    endif
+    set u = null
+endfunction
+
+function CmdDebug_Help takes nothing returns nothing
+    call DebugLog(LOG_INFO, "Available Commands")
+    call DebugLog(LOG_INFO, "-debug component.view : Shows the list of components on the selected unit.")
+endfunction
+
+function CmdProc_Debug takes nothing returns nothing
+    local integer eventArgs = Cmd_GetEventArgs()
+    if CmdMatch("component.view", 1, eventArgs) then
+        call CmdDebug_ComponentView()
+    elseif CmdMatch("setlevel", 1, eventArgs) then
+        if List_GetSize(eventArgs) >= 3 then
+            call CmdDebug_SetLevel(S2I(List_GetString(eventArgs, 2)))
+        else
+            call DebugLog(LOG_INFO, "Missing arg <level>")
+        endif
+    elseif CmdMatch("help", 1, eventArgs) then
+        call CmdDebug_Help()
+    elseif CmdMatch("fastpick", 1, eventArgs) then
+        if gGameState == GS_HERO_PICK and TimerGetRemaining(GameState_HeroPick_gTimer) > 15.0 then
+            call TimerStart(GameState_HeroPick_gTimer, 15.0, false, null)
+        endif
+    else
+        call CmdDebug_Help()
+    endif
+
+endfunction
+
+function CmdDebug_Init takes nothing returns nothing
+    call Cmd_RegisterHandler("-debug", function CmdProc_Debug)
+
 endfunction// ______________________________________________
 // Scripts/Core/Main
 // ----------------------------------------------
@@ -3698,6 +4087,7 @@ function Main_Init takes nothing returns nothing
     // call GameRules_Init()
     // call CmdObject_Init()
     call CmdGame_Init()
+    call CmdDebug_Init()
     call DebugLog(LOG_INFO, "Main_Init finished.")
 
     

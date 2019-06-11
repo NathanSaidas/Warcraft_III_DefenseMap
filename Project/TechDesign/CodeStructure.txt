@@ -4,12 +4,14 @@
 //   Implemented a few game state (Loading/HeroPick /w -repick command)
 //   Registered some basic unit types
 // todo: 
-//   Implement the GameDirector to spawn waves correct
-//   Use the GameState_Playing to drive the GameDirector
-//   Implement GameState_Playing to keep track of lives
+//   Implement new Debug command
+//   Implement PlayerHeroComponent
+//   Implement a win condition
+//   Implement Game Restart system (GameState_Failed|GameState_Success should transition to GameState_Loading after a brief period of time.)
 //   Implement Player Hero inventory system
 //   Implement Player resource tracking
 //   Implement Hero revival system
+// 
 //
 
 
@@ -154,4 +156,13 @@ foreach(Component c : mComponents)
 }
 
 
-Bosocritie
+Item Types:
+Chest
+    Magi Robes
+
+Ring
+Neck
+Boots
+Staff
+Sword
+Trinket

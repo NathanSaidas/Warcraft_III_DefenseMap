@@ -3,18 +3,24 @@ function GameState_PreInit takes nothing returns nothing
 
     call PlayerMgr_PreInit()
     call UnitMgr_PreInit()
-    call GameDirector_PreInit()
+    if CONFIG_DEFENSE_MAP then
+        call GameDirector_PreInit()
+    endif
     call Component_PreInit()
 
-    call GameState_HeroPick_PreInit()
-    call GameState_Playing_PreInit()
+    if CONFIG_DEFENSE_MAP then
+        call GameState_HeroPick_PreInit()
+        call GameState_Playing_PreInit()
+    endif
 endfunction
 
 function GameState_Init takes nothing returns nothing
     call DebugLog(LOG_INFO, "GameState_Init")
 
-    call GameState_HeroPick_Init()
+    if CONFIG_DEFENSE_MAP then
+        call GameState_HeroPick_Init()
 
-    call Thread_RegisterDriver("Game_Update", function Game_Update)
-    call Thread_StartDriver("Game_Update")
+        call Thread_RegisterDriver("Game_Update", function Game_Update)
+        call Thread_StartDriver("Game_Update")
+    endif
 endfunction
