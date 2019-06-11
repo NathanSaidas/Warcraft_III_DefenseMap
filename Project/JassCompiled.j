@@ -3448,6 +3448,10 @@ function GameState_HeroPick_SelectCaster takes nothing returns nothing
     call GameState_HeroPick_SelectHero("Caster", GetEnteringUnit())
 endfunction
 
+function GameState_HeroPick_SelectTank takes nothing returns nothing
+    call GameState_HeroPick_SelectHero("SiegeRacer_Tank", GetEnteringUnit())
+endfunction
+
 function GameState_HeroPick_PreInit takes nothing returns nothing
     // Initialize starting locations:
 
@@ -3456,9 +3460,14 @@ function GameState_HeroPick_PreInit takes nothing returns nothing
     set GameState_HeroPick_gHeroSpawnX = GetRectCenterX(gg_rct_HeroPickSpawn)
     set GameState_HeroPick_gHeroSpawnY = GetRectCenterY(gg_rct_HeroPickSpawn)
     set GameState_HeroPick_gHeroPickerType = UnitMgr_FindUnitTypeByString("HeroPicker")
-    call GameState_HeroPick_RegisterHeroPicker(gg_rct_HeroPickDebugHero, function GameState_HeroPick_SelectDebugHero)
-    call GameState_HeroPick_RegisterHeroPicker(gg_rct_HeroPickCaster, function GameState_HeroPick_SelectCaster)
+    if CONFIG_DEFENSE_MAP then
+        call GameState_HeroPick_RegisterHeroPicker(gg_rct_HeroPickDebugHero, function GameState_HeroPick_SelectDebugHero)
+        call GameState_HeroPick_RegisterHeroPicker(gg_rct_HeroPickCaster, function GameState_HeroPick_SelectCaster)
+    endif
 
+    if CONFIG_SIEGE_RACER_MAP then
+        call GameState_HeroPick_RegisterHeroPicker(gg_rct_srHeroPickTank, function GameState_HeroPick_SelectTank)
+    endif
 endfunction
 
 function GameState_HeroPick_Init takes nothing returns nothing
@@ -3769,6 +3778,89 @@ function Game_Update takes nothing returns nothing
         call Sleep(GAME_DELTA)
     endloop
 endfunction// ______________________________________________
+// Scripts/SiegeRacer/SRGame_h
+// ----------------------------------------------
+globals
+
+endglobals
+// ______________________________________________
+// Scripts/SiegeRacer/SRGame_c
+// ----------------------------------------------
+function SiegeRacer_OnLoadingDone takes nothing returns nothing
+    call SetDestructableInvulnerableBJ( udg_SC_GateBack, true )
+    call SetDestructableInvulnerableBJ( udg_SC_GateFront, true )
+    call ModifyGateBJ( bj_GATEOPERATION_CLOSE, udg_SC_GateBack )
+    call ModifyGateBJ( bj_GATEOPERATION_CLOSE, udg_SC_GateFront )
+endfunction
+
+function SiegeRacer_TransitionOut takes nothing returns nothing
+    if gGameState == GS_LOADING then
+        call SiegeRacer_OnLoadingDone()
+        call GameState_Loading_TransitionOut()
+        if CONFIG_GAME_ENABLE_LOGGING then
+            call DebugLog(LOG_INFO, "Game_c: GS_LOADING->TransitionOut()")
+        endif
+    elseif gGameState == GS_HERO_PICK then
+        call GameState_HeroPick_TransitionOut()
+        if CONFIG_GAME_ENABLE_LOGGING then
+            call DebugLog(LOG_INFO, "Game_c: GS_HERO_PICK->TransitionOut()")
+        endif
+    endif
+endfunction
+
+function SiegeRacer_TransitionIn takes nothing returns nothing
+    if gNextGameState == GS_LOADING then
+        call GameState_Loading_TransitionIn()
+        if CONFIG_GAME_ENABLE_LOGGING then
+            call DebugLog(LOG_INFO, "Game_c: GS_LOADING->TransitionIn()")
+        endif
+    elseif gNextGameState == GS_HERO_PICK then
+        call GameState_HeroPick_TransitionIn()
+        if CONFIG_GAME_ENABLE_LOGGING then
+            call DebugLog(LOG_INFO, "Game_c: GS_HERO_PICK->TransitionIn()")
+        endif
+    endif
+endfunction
+
+function SiegeRacer_UpdateState takes nothing returns nothing
+    local integer mUpdateThread = Thread_GetDriver("SiegeRacer_UpdateState")
+
+    loop
+        call Thread_UpdateTick(mUpdateThread)
+
+        // Process State Changes:
+        if gGameState != gNextGameState then
+            call SiegeRacer_TransitionOut()
+            call SiegeRacer_TransitionIn()
+            set gGameState = gNextGameState
+        endif
+        if gGameState == GS_LOADING then
+            call GameState_Loading_Update()
+        elseif gGameState == GS_HERO_PICK then
+            call GameState_HeroPick_Update()
+        endif
+
+        call Sleep(GAME_DELTA)
+    endloop
+endfunction
+
+function SiegeRacer_Update takes nothing returns nothing
+    local integer mUpdateThread = Thread_GetDriver("SiegeRacer_Update")
+    local integer mStateThread = INVALID
+
+    call Thread_RegisterDriver("SiegeRacer_UpdateState", function SiegeRacer_UpdateState)
+    set mStateThread = Thread_GetDriver("SiegeRacer_UpdateState")
+
+    loop
+        call Thread_UpdateTick(mUpdateThread)
+
+        if not Thread_IsRunning(mStateThread) then
+            call Thread_StartDriver("SiegeRacer_UpdateState")
+        endif
+
+        call Sleep(GAME_DELTA)
+    endloop
+endfunction// ______________________________________________
 // Scripts/Game/PlayerMgrRegister
 // ----------------------------------------------
 function PlayerMgr_PreInit takes nothing returns nothing
@@ -3826,6 +3918,14 @@ function UnitData_Caster_Create takes nothing returns nothing
     call UnitMgr_AddHeroComponents(unitTypeData, unitData)
 endfunction
 
+// todo: I think we should have a different type of 'HeroRespawn' component on the hero.
+// Respawn in place?
+function UnitData_Tank_Create takes nothing returns nothing
+    local integer unitTypeData = UnitTypeData_gArg_Init_typeData
+    local integer unitData = UnitTypeData_gArg_Init_unitData
+    call UnitMgr_AddHeroComponents(unitTypeData, unitData)
+endfunction
+
 function UnitMgr_PreInit takes nothing returns nothing
     set UnitMgr_gTypes = List_Create(TYPE_ID_UNIT_TYPE_DATA)
 
@@ -3836,7 +3936,8 @@ function UnitMgr_PreInit takes nothing returns nothing
     call UnitMgr_RegisterUnitType('h001',"TestWaveUnit2")
 
     call UnitMgr_RegisterInit(UnitMgr_RegisterUnitType('H004', "Caster"), function UnitData_Caster_Create)
-
+    call UnitMgr_RegisterInit(UnitMgr_RegisterUnitType('H00E', "SiegeRacer_Tank"), function UnitData_Tank_Create)
+    
 
     call UnitMgr_RegisterUnitType('h005', "Gnoll")
     call UnitMgr_RegisterUnitType('h006', "Kobold")
@@ -3933,6 +4034,10 @@ function GameState_PreInit takes nothing returns nothing
         call GameState_HeroPick_PreInit()
         call GameState_Playing_PreInit()
     endif
+
+    if CONFIG_SIEGE_RACER_MAP then
+        call GameState_HeroPick_PreInit()
+    endif
 endfunction
 
 function GameState_Init takes nothing returns nothing
@@ -3943,6 +4048,13 @@ function GameState_Init takes nothing returns nothing
 
         call Thread_RegisterDriver("Game_Update", function Game_Update)
         call Thread_StartDriver("Game_Update")
+    endif
+
+    if CONFIG_SIEGE_RACER_MAP then
+        call GameState_HeroPick_Init()
+
+        call Thread_RegisterDriver("SiegeRacer_Update", function SiegeRacer_Update)
+        call Thread_StartDriver("SiegeRacer_Update")
     endif
 endfunction// ______________________________________________
 // Scripts/Commands/CmdGame

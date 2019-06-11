@@ -36,6 +36,8 @@ Scripts\Game\GameState_Success_c
 Scripts\Game\GameState_Success_h
 Scripts\Game\Game_h
 Scripts\Game\Game_c
+Scripts\SiegeRacer\SRGame_h
+Scripts\SiegeRacer\SRGame_c
 Scripts\Game\PlayerMgrRegister
 Scripts\Game\UnitMgrRegister
 Scripts\Game\ComponentRegister

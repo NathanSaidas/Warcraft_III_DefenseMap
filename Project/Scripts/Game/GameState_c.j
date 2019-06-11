@@ -12,6 +12,10 @@ function GameState_PreInit takes nothing returns nothing
         call GameState_HeroPick_PreInit()
         call GameState_Playing_PreInit()
     endif
+
+    if CONFIG_SIEGE_RACER_MAP then
+        call GameState_HeroPick_PreInit()
+    endif
 endfunction
 
 function GameState_Init takes nothing returns nothing
@@ -22,5 +26,12 @@ function GameState_Init takes nothing returns nothing
 
         call Thread_RegisterDriver("Game_Update", function Game_Update)
         call Thread_StartDriver("Game_Update")
+    endif
+
+    if CONFIG_SIEGE_RACER_MAP then
+        call GameState_HeroPick_Init()
+
+        call Thread_RegisterDriver("SiegeRacer_Update", function SiegeRacer_Update)
+        call Thread_StartDriver("SiegeRacer_Update")
     endif
 endfunction

@@ -38,6 +38,14 @@ function UnitData_Caster_Create takes nothing returns nothing
     call UnitMgr_AddHeroComponents(unitTypeData, unitData)
 endfunction
 
+// todo: I think we should have a different type of 'HeroRespawn' component on the hero.
+// Respawn in place?
+function UnitData_Tank_Create takes nothing returns nothing
+    local integer unitTypeData = UnitTypeData_gArg_Init_typeData
+    local integer unitData = UnitTypeData_gArg_Init_unitData
+    call UnitMgr_AddHeroComponents(unitTypeData, unitData)
+endfunction
+
 function UnitMgr_PreInit takes nothing returns nothing
     set UnitMgr_gTypes = List_Create(TYPE_ID_UNIT_TYPE_DATA)
 
@@ -48,7 +56,8 @@ function UnitMgr_PreInit takes nothing returns nothing
     call UnitMgr_RegisterUnitType('h001',"TestWaveUnit2")
 
     call UnitMgr_RegisterInit(UnitMgr_RegisterUnitType('H004', "Caster"), function UnitData_Caster_Create)
-
+    call UnitMgr_RegisterInit(UnitMgr_RegisterUnitType('H00E', "SiegeRacer_Tank"), function UnitData_Tank_Create)
+    
 
     call UnitMgr_RegisterUnitType('h005', "Gnoll")
     call UnitMgr_RegisterUnitType('h006', "Kobold")

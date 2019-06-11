@@ -100,6 +100,10 @@ function GameState_HeroPick_SelectCaster takes nothing returns nothing
     call GameState_HeroPick_SelectHero("Caster", GetEnteringUnit())
 endfunction
 
+function GameState_HeroPick_SelectTank takes nothing returns nothing
+    call GameState_HeroPick_SelectHero("SiegeRacer_Tank", GetEnteringUnit())
+endfunction
+
 function GameState_HeroPick_PreInit takes nothing returns nothing
     // Initialize starting locations:
 
@@ -108,9 +112,14 @@ function GameState_HeroPick_PreInit takes nothing returns nothing
     set GameState_HeroPick_gHeroSpawnX = GetRectCenterX(gg_rct_HeroPickSpawn)
     set GameState_HeroPick_gHeroSpawnY = GetRectCenterY(gg_rct_HeroPickSpawn)
     set GameState_HeroPick_gHeroPickerType = UnitMgr_FindUnitTypeByString("HeroPicker")
-    call GameState_HeroPick_RegisterHeroPicker(gg_rct_HeroPickDebugHero, function GameState_HeroPick_SelectDebugHero)
-    call GameState_HeroPick_RegisterHeroPicker(gg_rct_HeroPickCaster, function GameState_HeroPick_SelectCaster)
+    if CONFIG_DEFENSE_MAP then
+        call GameState_HeroPick_RegisterHeroPicker(gg_rct_HeroPickDebugHero, function GameState_HeroPick_SelectDebugHero)
+        call GameState_HeroPick_RegisterHeroPicker(gg_rct_HeroPickCaster, function GameState_HeroPick_SelectCaster)
+    endif
 
+    if CONFIG_SIEGE_RACER_MAP then
+        call GameState_HeroPick_RegisterHeroPicker(gg_rct_srHeroPickTank, function GameState_HeroPick_SelectTank)
+    endif
 endfunction
 
 function GameState_HeroPick_Init takes nothing returns nothing
