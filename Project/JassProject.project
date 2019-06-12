@@ -24,6 +24,8 @@ Scripts\Game\PlayerMgr_c
 Scripts\Components\RunToCityComponent
 Scripts\Components\PlayerHeroComponent
 Scripts\Components\MonitorUnitLifeComponent
+Scripts\SiegeRacer\Components\SRPlayerComponent_h
+Scripts\SiegeRacer\Components\SRPlayerComponent_c
 Scripts\Game\GameDirector_c
 Scripts\Game\GameState_Loading_h
 Scripts\Game\GameState_Loading_c

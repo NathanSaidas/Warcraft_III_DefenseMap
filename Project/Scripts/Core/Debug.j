@@ -76,10 +76,9 @@ endfunction
 
 function Debug_Update takes nothing returns nothing
     if DisplayBoard_GetCurrent() == MULTIBOARD_OBJECT_WATCH then
-        call DisplayBoard_Hide()
         call DisplayBoard_SetRowCount(MULTIBOARD_OBJECT_WATCH, 1 + gDebugWatchCount)
         call Debug_UpdateWatchValues()
-        call DisplayBoard_Show(MULTIBOARD_OBJECT_WATCH, true)
+        call DisplayBoard_Refresh()
     endif
 endfunction
 
@@ -88,7 +87,6 @@ function Debug_ShowWatch takes nothing returns nothing
         return
     endif
     call Debug_SaveDisplayBoard()
-    call DisplayBoard_Hide()
 
     call DisplayBoard_SetRowCount(MULTIBOARD_OBJECT_WATCH, 1 + gDebugWatchCount)
     call DisplayBoard_SetTextItem(MULTIBOARD_OBJECT_WATCH, 0, 0, 15.0, "Variable", MULTIBOARD_COLOR_TITLE_YELLOW)
@@ -99,6 +97,7 @@ function Debug_ShowWatch takes nothing returns nothing
     call Debug_UpdateWatchValues()
 
     call DisplayBoard_Show(MULTIBOARD_OBJECT_WATCH, true)
+    call DisplayBoard_Refresh()
 endfunction
 
 function Debug_HideWatch takes nothing returns nothing

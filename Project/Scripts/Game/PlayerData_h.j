@@ -4,8 +4,9 @@ globals
     constant integer PlayerData_mHeroPicker = 1
     constant integer PlayerData_mHero = 2
     constant integer PlayerData_mControlledUnits = 3
+    constant integer PlayerData_mComponents = 4
 
-    constant integer PlayerData_MAX_MEMBER = 4
+    constant integer PlayerData_MAX_MEMBER = 5
 endglobals
 
 function PlayerData_Create takes integer playerId returns integer
@@ -18,6 +19,7 @@ function PlayerData_Create takes integer playerId returns integer
     call SaveInteger(gObject, self, PlayerData_mHeroPicker, INVALID)
     call SaveInteger(gObject, self, PlayerData_mHero, INVALID)
     call SaveInteger(gObject, self, PlayerData_mControlledUnits, List_Create(TYPE_ID_UNIT_DATA))
+    call SaveInteger(gObject, self, PlayerData_mComponents, List_Create(TYPE_ID_COMPONENT))
     return self
 endfunction
 

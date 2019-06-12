@@ -112,6 +112,13 @@ function DisplayBoard_Hide takes nothing returns nothing
     endif
 endfunction
 
+function DisplayBoard_Refresh takes nothing returns nothing
+    if gCurrentMultiboard >= 0 and gMultiboards[gCurrentMultiboard] != null then
+        call MultiboardDisplay(gMultiboards[gCurrentMultiboard], false)
+        call MultiboardDisplay(gMultiboards[gCurrentMultiboard], true)
+    endif
+endfunction
+
 function DisplayBoard_GetCurrent takes nothing returns integer
     return gCurrentMultiboard
 endfunction
