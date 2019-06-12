@@ -229,7 +229,12 @@ function CmdMatch takes string arg, integer index, integer eventArgs returns boo
     return List_GetString(eventArgs, index) == arg
 endfunction
 
-
+function Cmd_GetString takes integer eventArgs, integer index returns string
+    if index >= List_GetSize(eventArgs) then
+        return ""
+    endif
+    return List_GetString(eventArgs, index)
+endfunction
 
 function Cmd_Test takes nothing returns nothing
     call DebugLog(LOG_INFO, "Cmd_Test...")

@@ -1751,6 +1751,480 @@ function List_FindTextTag takes integer self, texttag value returns integer
     return INVALID
 endfunction
 // ______________________________________________
+// Scripts/Core/DisplayBoard
+// ----------------------------------------------
+
+// Manages multiboard displays:
+// Game
+// Debug
+
+globals
+    // multiboard slots
+    constant integer MULTIBOARD_GAME = 0
+    constant integer MULTIBOARD_OBJECT_WATCH = 1
+    constant integer MULTIBOARD_THREAD_WATCH = 2
+    constant integer MULTIBOARD_MAX_SLOT = 3
+
+    constant integer MULTIBOARD_COLOR_WHITE = 0
+    constant integer MULTIBOARD_COLOR_TITLE_YELLOW = 1
+
+    multiboard array gMultiboards
+    integer gCurrentMultiboard = INVALID
+endglobals
+
+function DisplayColor_GetR takes integer id returns integer
+    if id == MULTIBOARD_COLOR_WHITE then
+        return 255
+    elseif id == MULTIBOARD_COLOR_TITLE_YELLOW then
+        return 238
+    endif
+    return 255
+endfunction
+function DisplayColor_GetG takes integer id returns integer
+    if id == MULTIBOARD_COLOR_WHITE then
+        return 255
+    elseif id == MULTIBOARD_COLOR_TITLE_YELLOW then
+        return 200
+    endif
+    return 255
+endfunction
+function DisplayColor_GetB takes integer id returns integer
+    if id == MULTIBOARD_COLOR_WHITE then
+        return 255
+    elseif id == MULTIBOARD_COLOR_TITLE_YELLOW then
+        return 15
+    endif
+    return 255
+endfunction
+
+
+function DisplayBoard_Create takes integer slot, integer rows, integer columns, string title returns multiboard
+    local multiboard mb = null
+    if gMultiboards[slot] != null then
+        call DebugLog(LOG_ERROR, "Failed to create multiboard at slot " + I2S(slot))
+        return null
+    endif
+    set mb = CreateMultiboard()
+    call MultiboardSetRowCount(mb, rows)
+    call MultiboardSetColumnCount(mb, columns)
+    call MultiboardSetTitleText(mb, title)
+    set gMultiboards[slot] = mb
+    set mb = null
+    return gMultiboards[slot]
+endfunction
+
+function DisplayBoard_SetRowCount takes integer slot, integer rows returns nothing
+    if slot >= 0 and slot <= MULTIBOARD_MAX_SLOT and gMultiboards[slot] != null then
+        call MultiboardSetRowCount(gMultiboards[slot], rows)
+    endif
+endfunction
+
+function DisplayBoard_GetRowCount takes integer slot returns integer
+    if slot >= 0 and slot <= MULTIBOARD_MAX_SLOT and gMultiboards[slot] != null then
+        return MultiboardGetRowCount(gMultiboards[slot])
+    endif
+    return 0
+endfunction
+
+function DisplayBoard_SetColumnCount takes integer slot, integer rows returns nothing
+    if slot >= 0 and slot <= MULTIBOARD_MAX_SLOT and gMultiboards[slot] != null then
+        call MultiboardSetColumnCount(gMultiboards[slot], rows)
+    endif
+endfunction
+
+function DisplayBoard_GetColumnCount takes integer slot returns integer
+    if slot >= 0 and slot <= MULTIBOARD_MAX_SLOT and gMultiboards[slot] != null then
+        return MultiboardGetColumnCount(gMultiboards[slot])
+    endif
+    return 0
+endfunction
+
+function DisplayBoard_Show takes integer slot, boolean maximize returns nothing
+    if slot == gCurrentMultiboard then
+        return // redundant
+    endif
+    // hide current
+    if gCurrentMultiboard >= 0 then
+        call MultiboardDisplay(gMultiboards[gCurrentMultiboard], false)
+        set gCurrentMultiboard = INVALID
+    endif
+    
+    if slot >= 0 and slot < MULTIBOARD_MAX_SLOT then
+        set gCurrentMultiboard = slot
+        call MultiboardDisplay(gMultiboards[gCurrentMultiboard], true)
+        call MultiboardMinimize(gMultiboards[gCurrentMultiboard], not maximize)
+    endif
+endfunction
+
+function DisplayBoard_Hide takes nothing returns nothing
+    if gCurrentMultiboard >= 0 and gMultiboards[gCurrentMultiboard] != null then
+        call MultiboardDisplay(gMultiboards[gCurrentMultiboard], false)
+        set gCurrentMultiboard = INVALID
+    endif
+
+    if gCurrentMultiboard == INVALID then
+        call DisplayBoard_Show(MULTIBOARD_GAME, false)
+    endif
+endfunction
+
+function DisplayBoard_GetCurrent takes nothing returns integer
+    return gCurrentMultiboard
+endfunction
+
+
+// slot
+// column
+// row
+// width
+// text
+// color
+function DisplayBoard_SetTextItem takes integer slot, integer column, integer row, real width, string text, integer color returns nothing
+    local multiboard mb = null
+    local multiboarditem mbitem = null
+    if slot < 0 or slot  >= MULTIBOARD_MAX_SLOT then
+        call DebugLog(LOG_ERROR, "DisplayBoard_SetTextItem failed: Invalid slot " + I2S(slot))
+        return
+    endif
+    set mb = gMultiboards[slot]
+    if mb == null then
+        return // silent fail:
+    endif
+    set mbitem = MultiboardGetItem(mb, row,column)
+    if mbitem == null then
+        set mb = null
+        return // silent fail:
+    endif
+
+    call MultiboardSetItemStyle(mbitem, true, false)
+    call MultiboardSetItemWidth(mbitem, width / 100.00)
+    call MultiboardSetItemValue(mbitem, text)
+    call MultiboardSetItemValueColor(mbitem, DisplayColor_GetR(color), DisplayColor_GetG(color), DisplayColor_GetB(color), 255)
+    call MultiboardReleaseItem(mbitem)
+    set mbitem = null
+    set mb = null
+endfunction// ______________________________________________
+// Scripts/Core/Thread
+// ----------------------------------------------
+// ___________________________________________________________________________________________
+// Object:
+// -------------------------------------------------------------------------------------------
+// Overview:
+//    Threads are a way to distribute work throughout the game.. Basically there are certain operation
+//    limits on each trigger.. but we can sleep for GAME_DELTA and reset the operation limit. However
+//    we want to update as much as we can in one GAME_DELTA update so we split the work into different
+//    virtual threads.
+//    ThreadDriver is the term used that manages work of various domains.. NpcUpdateDriver XTownUpdateDriver
+//    etc...
+//
+// Thread is a static API, however the ThreadDrivers are objects
+//
+// ThreadDriver members:
+//  	int mMainTick;
+//      int mLocalTick;
+//      bool mRunning;
+//      trigger mCallback;
+//
+//
+//  When using a ThreadDriver it's important to keep mMainTick and mLocalTick in sync, if they differ by
+//  THREAD_MAX_DIFF then the thread is considered "Stalled" meaning wc3 engine likely stopped it due to
+//  passing max operation limit.
+//  To keep a ThreadDriver in sync, make sure you're updating on GAME_DELTA (thats the only sleep allowed!)
+//  and calling Thread_UpdateTick with the driver object.
+
+// PRIVATE CONST: The maximum tick difference between local/main thread.
+// In reality there should only be 1 but were generous :)
+
+
+// struct
+// {
+//      integer mMainTick;
+//      integer mLocalTick;
+//      boolean mRunning;
+//      trigger mCallback;
+// };
+globals
+    constant integer THREAD_MAX_DIFF = 25
+
+    constant integer ThreadDriver_mMainTick = 0
+    constant integer ThreadDriver_mLocalTick = 1
+    constant integer ThreadDriver_mRunning = 2
+    constant integer ThreadDriver_mCallback = 3
+
+    constant integer Thread_mDrivers = 0
+
+    integer gThread = INVALID
+endglobals
+
+function Thread_PreInit takes nothing returns nothing
+    set gThread = Object_Allocate(TYPE_ID_THREAD, 1)
+    call SaveInteger(gObject, gThread, Thread_mDrivers, List_Create(TYPE_ID_THREAD_DRIVER))
+endfunction
+
+// PRIVATE: Thread update function.. Checks for stalls.
+function p_Thread_Update takes integer drivers returns nothing
+	local integer i = 0
+	local integer size = List_GetSize(drivers)
+	local integer diff = 0
+	local integer mtick = 0
+	local integer ltick = 0
+	local integer tmpi = INVALID
+
+	loop
+		exitwhen i >= size
+			set tmpi = List_GetObject(drivers, i)
+			set mtick = LoadInteger(gObject, tmpi, ThreadDriver_mMainTick)
+			set ltick = LoadInteger(gObject, tmpi, ThreadDriver_mLocalTick)
+			set diff = Abs(mtick - ltick)
+			if LoadBoolean(gObject, tmpi, ThreadDriver_mRunning) == true then
+				if diff > THREAD_MAX_DIFF then
+					call SaveBoolean(gObject, tmpi, ThreadDriver_mRunning, false)
+					call DebugLog(LOG_ERROR, I2S(tmpi) + " thread driver stalled! Missing Thread_UpdateTick?")
+				else
+					call SaveInteger(gObject, tmpi, ThreadDriver_mMainTick, mtick + 1)
+				endif
+			endif
+		set i = i + 1
+	endloop
+endfunction
+
+// PUBLIC: Call this each GAME_DELTA update, when running a thread driver to signal there is no
+// stall.
+function Thread_UpdateTick takes integer driver returns nothing
+	// todo: If stuff gets to crazy.. we can use Thread_SyncTick.. to make mLocalTick=mMainTick
+	call SaveInteger(gObject, driver, ThreadDriver_mLocalTick, LoadInteger(gObject, driver, ThreadDriver_mLocalTick) + 1)
+endfunction
+
+// PUBLIC: Should be called from game update.. It is a sleepy update so it should have its own thread.
+function Thread_Update takes integer driver returns nothing
+	local integer drivers = INVALID 
+	
+	if IsNull(gThread) then
+		call AccessViolation("Thread_Update")
+		return
+	endif
+
+	set drivers = LoadInteger(gObject, gThread, Thread_mDrivers)
+	loop
+		call Thread_UpdateTick(driver)
+		call p_Thread_Update(drivers)
+		call Sleep(GAME_DELTA)
+	endloop
+endfunction
+
+function Thread_GetDriver takes string name returns integer
+	return Object_FindByString(TYPE_ID_THREAD_DRIVER, p_Object_Name, name)
+endfunction
+
+// PUBLIC: Should be called during game initialization to register various updater functions.
+function Thread_RegisterDriver takes string name, code func returns nothing
+    local integer drivers = INVALID
+	local trigger trig = null
+	local integer driver = INVALID
+
+	if IsNull(gThread) then
+		call AccessViolation("Thread_RegisterDriver")
+		return
+	endif
+
+	set driver = Object_Allocate(TYPE_ID_THREAD_DRIVER, 4)
+	if IsNull(driver) then
+		call DebugLog(LOG_ERROR, "Thread_RegisterDriver failed: Name=" + name)
+		return
+	endif
+	if CONFIG_THREAD_ENABLE_LOGGING then
+		call DebugLog(LOG_INFO, "Create driver [" + I2S(driver) + "]: " + name)
+	endif
+
+	set drivers = LoadInteger(gObject, gThread, Thread_mDrivers)
+	set trig = CreateTrigger()
+	call TriggerAddAction(trig, func)
+	call SaveStr(gObject, driver, p_Object_Name, name)
+	call SaveTriggerHandle(gObject, driver, ThreadDriver_mCallback, trig)
+	call SaveInteger(gObject, driver, ThreadDriver_mMainTick, 0)
+	call SaveInteger(gObject, driver, ThreadDriver_mLocalTick, 0)
+	call SaveBoolean(gObject, driver, ThreadDriver_mRunning, false)
+	if CONFIG_THREAD_ENABLE_LOGGING then
+		call DebugLog(LOG_INFO, "Register Driver: " + Object_GetFormattedName(driver)) 
+	endif
+	call List_AddObject(drivers, driver)
+	set trig = null
+endfunction
+
+// PUBLIC: Call to start a thread.. Can be called in game-initialization.
+function Thread_StartDriver takes string name returns nothing
+	local integer driver = Object_FindByString(TYPE_ID_THREAD_DRIVER, p_Object_Name, name)
+	if IsNull(driver) then
+		call DebugLog(LOG_ERROR, "Failed to start thread " + name + " because it doesn't exist.")
+		return
+	endif
+
+	if LoadBoolean(gObject, driver, ThreadDriver_mRunning) == true then
+		call DebugLog(LOG_ERROR, "Failed to start thread " + name + " because it is already running.")
+		return
+	endif
+
+	call SaveInteger(gObject, driver, ThreadDriver_mLocalTick, 0)
+	call SaveInteger(gObject, driver, ThreadDriver_mMainTick, 0)
+	call SaveBoolean(gObject, driver, ThreadDriver_mRunning, true)
+	call TriggerExecute(LoadTriggerHandle(gObject, driver, ThreadDriver_mCallback))
+endfunction
+
+function Thread_IsRunning takes integer self returns boolean
+	return LoadBoolean(gObject, self, ThreadDriver_mRunning)
+endfunction// ______________________________________________
+// Scripts/Core/Debug
+// ----------------------------------------------
+globals
+    constant integer DEBUG_TYPE_INTEGER = 0
+    constant integer DEBUG_TYPE_REAL = 1
+    constant integer DEBUG_TYPE_STRING = 2
+    constant integer DEBUG_TYPE_OBJECT = 3
+
+    integer gDebugRestoreMultiboard = INVALID
+    string array gDebugWatchVariables
+    integer array gDebugWatchAddresses
+    integer array gDebugWatchMemberIndices
+    integer array gDebugWatchTypes
+    integer gDebugWatchCount = 0
+endglobals
+
+function Debug_PreInit takes nothing returns nothing
+    call DisplayBoard_Create(MULTIBOARD_OBJECT_WATCH, 1, 4, "Debug Watch Window")
+endfunction
+
+function Debug_SaveDisplayBoard takes nothing returns nothing
+    if DisplayBoard_GetCurrent() != MULTIBOARD_OBJECT_WATCH then
+        set gDebugRestoreMultiboard = DisplayBoard_GetCurrent()
+    endif
+endfunction
+
+function Debug_GetValueString takes integer addr, integer member, integer typeID returns string
+    if typeID == DEBUG_TYPE_INTEGER then
+        return I2S(LoadInteger(gObject, addr, member))
+    elseif typeID == DEBUG_TYPE_REAL then
+        return R2S(LoadReal(gObject, addr, member))
+    elseif typeID == DEBUG_TYPE_STRING then
+        return LoadStr(gObject, addr, member)
+    else
+        return "{}"
+    endif
+endfunction
+
+function Debug_GetTypeString takes integer typeID returns string
+    if typeID == DEBUG_TYPE_INTEGER then
+        return "Integer"
+    elseif typeID == DEBUG_TYPE_REAL then
+        return "Real"
+    elseif typeID == DEBUG_TYPE_STRING then
+        return "String"
+    else
+        return "Object"
+    endif
+endfunction
+
+function Debug_GetTypeFromString takes string typeID returns integer
+    if typeID == "Integer" then
+        return DEBUG_TYPE_INTEGER
+    elseif typeID == "Real" then
+        return DEBUG_TYPE_REAL
+    elseif typeID == "String" then
+        return DEBUG_TYPE_STRING
+    else
+        return DEBUG_TYPE_OBJECT
+    endif
+endfunction
+
+function Debug_UpdateWatchValues takes nothing returns nothing
+    local integer i = 0
+
+    loop
+        exitwhen i >= gDebugWatchCount
+        
+        call DisplayBoard_SetTextItem(MULTIBOARD_OBJECT_WATCH, 0, i + 1, 15.0, gDebugWatchVariables[i], MULTIBOARD_COLOR_WHITE)
+        call DisplayBoard_SetTextItem(MULTIBOARD_OBJECT_WATCH, 1, i + 1, 8.0, I2S(gDebugWatchAddresses[i]), MULTIBOARD_COLOR_WHITE)
+        call DisplayBoard_SetTextItem(MULTIBOARD_OBJECT_WATCH, 2, i + 1, 8.0, Debug_GetValueString(gDebugWatchAddresses[i], gDebugWatchMemberIndices[i], gDebugWatchTypes[i]), MULTIBOARD_COLOR_WHITE)
+        call DisplayBoard_SetTextItem(MULTIBOARD_OBJECT_WATCH, 3, i + 1, 8.0, Debug_GetTypeString(gDebugWatchTypes[i]), MULTIBOARD_COLOR_WHITE)
+
+        set i = i + 1
+    endloop
+
+endfunction
+
+function Debug_Update takes nothing returns nothing
+    if DisplayBoard_GetCurrent() == MULTIBOARD_OBJECT_WATCH then
+        call DisplayBoard_Hide()
+        call DisplayBoard_SetRowCount(MULTIBOARD_OBJECT_WATCH, 1 + gDebugWatchCount)
+        call Debug_UpdateWatchValues()
+        call DisplayBoard_Show(MULTIBOARD_OBJECT_WATCH, true)
+    endif
+endfunction
+
+function Debug_ShowWatch takes nothing returns nothing
+    if DisplayBoard_GetCurrent() == MULTIBOARD_OBJECT_WATCH then
+        return
+    endif
+    call Debug_SaveDisplayBoard()
+    call DisplayBoard_Hide()
+
+    call DisplayBoard_SetRowCount(MULTIBOARD_OBJECT_WATCH, 1 + gDebugWatchCount)
+    call DisplayBoard_SetTextItem(MULTIBOARD_OBJECT_WATCH, 0, 0, 15.0, "Variable", MULTIBOARD_COLOR_TITLE_YELLOW)
+    call DisplayBoard_SetTextItem(MULTIBOARD_OBJECT_WATCH, 1, 0, 8.0, "Address", MULTIBOARD_COLOR_TITLE_YELLOW)
+    call DisplayBoard_SetTextItem(MULTIBOARD_OBJECT_WATCH, 2, 0, 8.0, "Value", MULTIBOARD_COLOR_TITLE_YELLOW)
+    call DisplayBoard_SetTextItem(MULTIBOARD_OBJECT_WATCH, 3, 0, 8.0, "Type", MULTIBOARD_COLOR_TITLE_YELLOW)
+
+    call Debug_UpdateWatchValues()
+
+    call DisplayBoard_Show(MULTIBOARD_OBJECT_WATCH, true)
+endfunction
+
+function Debug_HideWatch takes nothing returns nothing
+    if gDebugRestoreMultiboard != INVALID then
+        call DisplayBoard_Show(gDebugRestoreMultiboard, true)
+    else
+        call DisplayBoard_Hide()
+    endif
+endfunction
+
+function Debug_AddWatch takes string variableName, integer address, integer memberIndex, string typeIDStr returns nothing
+    local integer typeID = Debug_GetTypeFromString(typeIDStr)
+    local integer i = gDebugWatchCount
+    
+    set gDebugWatchVariables[i] = variableName
+    set gDebugWatchAddresses[i] = address
+    set gDebugWatchMemberIndices[i] = memberIndex
+    set gDebugWatchTypes[i] = typeID
+    set gDebugWatchCount = gDebugWatchCount + 1
+endfunction
+
+function Debug_RemoveWatchAt takes integer i returns nothing
+    if i >= gDebugWatchCount then
+        return
+    endif
+
+    loop
+        exitwhen i >= gDebugWatchCount
+
+        set gDebugWatchVariables[i] = gDebugWatchVariables[i + 1]
+        set gDebugWatchAddresses[i] = gDebugWatchAddresses[i + 1]
+        set gDebugWatchMemberIndices[i] = gDebugWatchMemberIndices[i + 1]
+        set gDebugWatchTypes[i] = gDebugWatchTypes[i+ 1]
+        set i = i + 1
+    endloop
+
+    set gDebugWatchCount = gDebugWatchCount - 1
+endfunction
+
+function Debug_RemoveWatch takes string variableName returns nothing
+    local integer i = 0
+    loop
+        exitwhen i >= gDebugWatchCount
+        if gDebugWatchVariables[i] == variableName then
+            call Debug_RemoveWatchAt(i)
+            return
+        endif
+        set i = i + 1
+    endloop
+endfunction// ______________________________________________
 // Scripts/Core/Cmd
 // ----------------------------------------------
 // Command Concept:
@@ -1984,7 +2458,12 @@ function CmdMatch takes string arg, integer index, integer eventArgs returns boo
     return List_GetString(eventArgs, index) == arg
 endfunction
 
-
+function Cmd_GetString takes integer eventArgs, integer index returns string
+    if index >= List_GetSize(eventArgs) then
+        return ""
+    endif
+    return List_GetString(eventArgs, index)
+endfunction
 
 function Cmd_Test takes nothing returns nothing
     call DebugLog(LOG_INFO, "Cmd_Test...")
@@ -1997,327 +2476,6 @@ function Cmd_Test takes nothing returns nothing
 
     
     call DebugLog(LOG_INFO, "Cmd_Test finished.")
-endfunction// ______________________________________________
-// Scripts/Core/Thread
-// ----------------------------------------------
-// ___________________________________________________________________________________________
-// Object:
-// -------------------------------------------------------------------------------------------
-// Overview:
-//    Threads are a way to distribute work throughout the game.. Basically there are certain operation
-//    limits on each trigger.. but we can sleep for GAME_DELTA and reset the operation limit. However
-//    we want to update as much as we can in one GAME_DELTA update so we split the work into different
-//    virtual threads.
-//    ThreadDriver is the term used that manages work of various domains.. NpcUpdateDriver XTownUpdateDriver
-//    etc...
-//
-// Thread is a static API, however the ThreadDrivers are objects
-//
-// ThreadDriver members:
-//  	int mMainTick;
-//      int mLocalTick;
-//      bool mRunning;
-//      trigger mCallback;
-//
-//
-//  When using a ThreadDriver it's important to keep mMainTick and mLocalTick in sync, if they differ by
-//  THREAD_MAX_DIFF then the thread is considered "Stalled" meaning wc3 engine likely stopped it due to
-//  passing max operation limit.
-//  To keep a ThreadDriver in sync, make sure you're updating on GAME_DELTA (thats the only sleep allowed!)
-//  and calling Thread_UpdateTick with the driver object.
-
-// PRIVATE CONST: The maximum tick difference between local/main thread.
-// In reality there should only be 1 but were generous :)
-
-
-// struct
-// {
-//      integer mMainTick;
-//      integer mLocalTick;
-//      boolean mRunning;
-//      trigger mCallback;
-// };
-globals
-    constant integer THREAD_MAX_DIFF = 25
-
-    constant integer ThreadDriver_mMainTick = 0
-    constant integer ThreadDriver_mLocalTick = 1
-    constant integer ThreadDriver_mRunning = 2
-    constant integer ThreadDriver_mCallback = 3
-
-    constant integer Thread_mDrivers = 0
-
-    integer gThread = INVALID
-endglobals
-
-function Thread_PreInit takes nothing returns nothing
-    set gThread = Object_Allocate(TYPE_ID_THREAD, 1)
-    call SaveInteger(gObject, gThread, Thread_mDrivers, List_Create(TYPE_ID_THREAD_DRIVER))
-endfunction
-
-// PRIVATE: Thread update function.. Checks for stalls.
-function p_Thread_Update takes integer drivers returns nothing
-	local integer i = 0
-	local integer size = List_GetSize(drivers)
-	local integer diff = 0
-	local integer mtick = 0
-	local integer ltick = 0
-	local integer tmpi = INVALID
-
-	loop
-		exitwhen i >= size
-			set tmpi = List_GetObject(drivers, i)
-			set mtick = LoadInteger(gObject, tmpi, ThreadDriver_mMainTick)
-			set ltick = LoadInteger(gObject, tmpi, ThreadDriver_mLocalTick)
-			set diff = Abs(mtick - ltick)
-			if LoadBoolean(gObject, tmpi, ThreadDriver_mRunning) == true then
-				if diff > THREAD_MAX_DIFF then
-					call SaveBoolean(gObject, tmpi, ThreadDriver_mRunning, false)
-					call DebugLog(LOG_ERROR, I2S(tmpi) + " thread driver stalled! Missing Thread_UpdateTick?")
-				else
-					call SaveInteger(gObject, tmpi, ThreadDriver_mMainTick, mtick + 1)
-				endif
-			endif
-		set i = i + 1
-	endloop
-endfunction
-
-// PUBLIC: Call this each GAME_DELTA update, when running a thread driver to signal there is no
-// stall.
-function Thread_UpdateTick takes integer driver returns nothing
-	// todo: If stuff gets to crazy.. we can use Thread_SyncTick.. to make mLocalTick=mMainTick
-	call SaveInteger(gObject, driver, ThreadDriver_mLocalTick, LoadInteger(gObject, driver, ThreadDriver_mLocalTick) + 1)
-endfunction
-
-// PUBLIC: Should be called from game update.. It is a sleepy update so it should have its own thread.
-function Thread_Update takes integer driver returns nothing
-	local integer drivers = INVALID 
-	
-	if IsNull(gThread) then
-		call AccessViolation("Thread_Update")
-		return
-	endif
-
-	set drivers = LoadInteger(gObject, gThread, Thread_mDrivers)
-	loop
-		call Thread_UpdateTick(driver)
-		call p_Thread_Update(drivers)
-		call Sleep(GAME_DELTA)
-	endloop
-endfunction
-
-function Thread_GetDriver takes string name returns integer
-	return Object_FindByString(TYPE_ID_THREAD_DRIVER, p_Object_Name, name)
-endfunction
-
-// PUBLIC: Should be called during game initialization to register various updater functions.
-function Thread_RegisterDriver takes string name, code func returns nothing
-    local integer drivers = INVALID
-	local trigger trig = null
-	local integer driver = INVALID
-
-	if IsNull(gThread) then
-		call AccessViolation("Thread_RegisterDriver")
-		return
-	endif
-
-	set driver = Object_Allocate(TYPE_ID_THREAD_DRIVER, 4)
-	if IsNull(driver) then
-		call DebugLog(LOG_ERROR, "Thread_RegisterDriver failed: Name=" + name)
-		return
-	endif
-	if CONFIG_THREAD_ENABLE_LOGGING then
-		call DebugLog(LOG_INFO, "Create driver [" + I2S(driver) + "]: " + name)
-	endif
-
-	set drivers = LoadInteger(gObject, gThread, Thread_mDrivers)
-	set trig = CreateTrigger()
-	call TriggerAddAction(trig, func)
-	call SaveStr(gObject, driver, p_Object_Name, name)
-	call SaveTriggerHandle(gObject, driver, ThreadDriver_mCallback, trig)
-	call SaveInteger(gObject, driver, ThreadDriver_mMainTick, 0)
-	call SaveInteger(gObject, driver, ThreadDriver_mLocalTick, 0)
-	call SaveBoolean(gObject, driver, ThreadDriver_mRunning, false)
-	if CONFIG_THREAD_ENABLE_LOGGING then
-		call DebugLog(LOG_INFO, "Register Driver: " + Object_GetFormattedName(driver)) 
-	endif
-	call List_AddObject(drivers, driver)
-	set trig = null
-endfunction
-
-// PUBLIC: Call to start a thread.. Can be called in game-initialization.
-function Thread_StartDriver takes string name returns nothing
-	local integer driver = Object_FindByString(TYPE_ID_THREAD_DRIVER, p_Object_Name, name)
-	if IsNull(driver) then
-		call DebugLog(LOG_ERROR, "Failed to start thread " + name + " because it doesn't exist.")
-		return
-	endif
-
-	if LoadBoolean(gObject, driver, ThreadDriver_mRunning) == true then
-		call DebugLog(LOG_ERROR, "Failed to start thread " + name + " because it is already running.")
-		return
-	endif
-
-	call SaveInteger(gObject, driver, ThreadDriver_mLocalTick, 0)
-	call SaveInteger(gObject, driver, ThreadDriver_mMainTick, 0)
-	call SaveBoolean(gObject, driver, ThreadDriver_mRunning, true)
-	call TriggerExecute(LoadTriggerHandle(gObject, driver, ThreadDriver_mCallback))
-endfunction
-
-function Thread_IsRunning takes integer self returns boolean
-	return LoadBoolean(gObject, self, ThreadDriver_mRunning)
-endfunction// ______________________________________________
-// Scripts/Core/DisplayBoard
-// ----------------------------------------------
-
-// Manages multiboard displays:
-// Game
-// Debug
-
-globals
-    // multiboard slots
-    constant integer MULTIBOARD_GAME = 0
-    constant integer MULTIBOARD_OBJECT_WATCH = 1
-    constant integer MULTIBOARD_THREAD_WATCH = 2
-    constant integer MULTIBOARD_MAX_SLOT = 3
-
-    constant integer MULTIBOARD_COLOR_WHITE = 0
-    constant integer MULTIBOARD_COLOR_TITLE_YELLOW = 1
-
-    multiboard array gMultiboards
-    integer gCurrentMultiboard = INVALID
-endglobals
-
-function DisplayColor_GetR takes integer id returns integer
-    if id == MULTIBOARD_COLOR_WHITE then
-        return 255
-    elseif id == MULTIBOARD_COLOR_TITLE_YELLOW then
-        return 238
-    endif
-    return 255
-endfunction
-function DisplayColor_GetG takes integer id returns integer
-    if id == MULTIBOARD_COLOR_WHITE then
-        return 255
-    elseif id == MULTIBOARD_COLOR_TITLE_YELLOW then
-        return 200
-    endif
-    return 255
-endfunction
-function DisplayColor_GetB takes integer id returns integer
-    if id == MULTIBOARD_COLOR_WHITE then
-        return 255
-    elseif id == MULTIBOARD_COLOR_TITLE_YELLOW then
-        return 15
-    endif
-    return 255
-endfunction
-
-
-function DisplayBoard_Create takes integer slot, integer rows, integer columns, string title returns multiboard
-    local multiboard mb = null
-    if gMultiboards[slot] != null then
-        call DebugLog(LOG_ERROR, "Failed to create multiboard at slot " + I2S(slot))
-        return null
-    endif
-    set mb = CreateMultiboard()
-    call MultiboardSetRowCount(mb, rows)
-    call MultiboardSetColumnCount(mb, columns)
-    call MultiboardSetTitleText(mb, title)
-    set gMultiboards[slot] = mb
-    set mb = null
-    return gMultiboards[slot]
-endfunction
-
-function DisplayBoard_SetRowCount takes integer slot, integer rows returns nothing
-    if slot >= 0 and slot <= MULTIBOARD_MAX_SLOT and gMultiboards[slot] != null then
-        call MultiboardSetRowCount(gMultiboards[slot], rows)
-    endif
-endfunction
-
-function DisplayBoard_GetRowCount takes integer slot returns integer
-    if slot >= 0 and slot <= MULTIBOARD_MAX_SLOT and gMultiboards[slot] != null then
-        return MultiboardGetRowCount(gMultiboards[slot])
-    endif
-    return 0
-endfunction
-
-function DisplayBoard_SetColumnCount takes integer slot, integer rows returns nothing
-    if slot >= 0 and slot <= MULTIBOARD_MAX_SLOT and gMultiboards[slot] != null then
-        call MultiboardSetColumnCount(gMultiboards[slot], rows)
-    endif
-endfunction
-
-function DisplayBoard_GetColumnCount takes integer slot returns integer
-    if slot >= 0 and slot <= MULTIBOARD_MAX_SLOT and gMultiboards[slot] != null then
-        return MultiboardGetColumnCount(gMultiboards[slot])
-    endif
-    return 0
-endfunction
-
-function DisplayBoard_Show takes integer slot, boolean maximize returns nothing
-    if slot == gCurrentMultiboard then
-        return // redundant
-    endif
-    // hide current
-    if gCurrentMultiboard >= 0 then
-        call MultiboardDisplay(gMultiboards[gCurrentMultiboard], false)
-        set gCurrentMultiboard = INVALID
-    endif
-    
-    if slot >= 0 and slot < MULTIBOARD_MAX_SLOT then
-        set gCurrentMultiboard = slot
-        call MultiboardDisplay(gMultiboards[gCurrentMultiboard], true)
-        call MultiboardMinimize(gMultiboards[gCurrentMultiboard], not maximize)
-    endif
-endfunction
-
-function DisplayBoard_Hide takes nothing returns nothing
-    if gCurrentMultiboard >= 0 and gMultiboards[gCurrentMultiboard] != null then
-        call MultiboardDisplay(gMultiboards[gCurrentMultiboard], false)
-        set gCurrentMultiboard = INVALID
-    endif
-
-    if gCurrentMultiboard == INVALID then
-        call DisplayBoard_Show(MULTIBOARD_GAME, false)
-    endif
-endfunction
-
-function DisplayBoard_GetCurrent takes nothing returns integer
-    return gCurrentMultiboard
-endfunction
-
-
-// slot
-// column
-// row
-// width
-// text
-// color
-function DisplayBoard_SetTextItem takes integer slot, integer column, integer row, real width, string text, integer color returns nothing
-    local multiboard mb = null
-    local multiboarditem mbitem = null
-    if slot < 0 or slot  >= MULTIBOARD_MAX_SLOT then
-        call DebugLog(LOG_ERROR, "DisplayBoard_SetTextItem failed: Invalid slot " + I2S(slot))
-        return
-    endif
-    set mb = gMultiboards[slot]
-    if mb == null then
-        return // silent fail:
-    endif
-    set mbitem = MultiboardGetItem(mb, row,column)
-    if mbitem == null then
-        set mb = null
-        return // silent fail:
-    endif
-
-    call MultiboardSetItemStyle(mbitem, true, false)
-    call MultiboardSetItemWidth(mbitem, width / 100.00)
-    call MultiboardSetItemValue(mbitem, text)
-    call MultiboardSetItemValueColor(mbitem, DisplayColor_GetR(color), DisplayColor_GetG(color), DisplayColor_GetB(color), 255)
-    call MultiboardReleaseItem(mbitem)
-    set mbitem = null
-    set mb = null
 endfunction// ______________________________________________
 // Scripts/Game/UnitTypeData_h
 // ----------------------------------------------
@@ -2387,6 +2545,9 @@ function PlayerData_Create takes integer playerId returns integer
     call SaveInteger(gObject, self, PlayerData_mHeroPicker, INVALID)
     call SaveInteger(gObject, self, PlayerData_mHero, INVALID)
     call SaveInteger(gObject, self, PlayerData_mControlledUnits, List_Create(TYPE_ID_UNIT_DATA))
+
+    call Debug_AddWatch("PlayerData::Hero", self, PlayerData_mHero, "Integer")
+
     return self
 endfunction
 
@@ -3781,6 +3942,7 @@ endfunction// ______________________________________________
 // Scripts/SiegeRacer/SRGame_h
 // ----------------------------------------------
 globals
+    constant integer DEBUG_WATCH_WINDOW = 1
 
 endglobals
 // ______________________________________________
@@ -3844,12 +4006,15 @@ function SiegeRacer_UpdateState takes nothing returns nothing
     endloop
 endfunction
 
+// todo: 
+//  -- We need to get a win condition (a lap is completed once all check points have been reached.)
 function SiegeRacer_Update takes nothing returns nothing
     local integer mUpdateThread = Thread_GetDriver("SiegeRacer_Update")
     local integer mStateThread = INVALID
 
     call Thread_RegisterDriver("SiegeRacer_UpdateState", function SiegeRacer_UpdateState)
     set mStateThread = Thread_GetDriver("SiegeRacer_UpdateState")
+
 
     loop
         call Thread_UpdateTick(mUpdateThread)
@@ -4116,7 +4281,6 @@ function CmdDebug_ComponentView takes nothing returns nothing
         call DebugLog(LOG_INFO, "[" + I2S(component) + "] " + Object_GetTypeName(Object_GetTypeId(component)))
         set i = i + 1
     endloop
-
 endfunction
 
 function CmdDebug_SetLevel takes integer level returns nothing
@@ -4140,6 +4304,65 @@ function CmdDebug_Help takes nothing returns nothing
     call DebugLog(LOG_INFO, "-debug component.view : Shows the list of components on the selected unit.")
 endfunction
 
+function CmdDebug_AddWatch takes integer eventArgs returns nothing
+    local string name = Cmd_GetString(eventArgs, 3)
+    local string address = Cmd_GetString(eventArgs, 4)
+    local string member = Cmd_GetString(eventArgs, 5)
+    local string typeID = StringCase(Cmd_GetString(eventArgs, 6), false)
+
+// -debug watch add <name> <address> <member> <type:integer>
+//    -     1    2    3        4        5          6
+    if typeID == "" then
+        set typeID = "int"
+    endif
+
+
+    if typeID != "int" and typeID != "integer" and typeID != "real" and typeID != "string" and typeID != "object" then
+        call DebugLog(LOG_INFO, "'debug watch add' expects the type to be one of the following: 'int' 'real' 'string' or 'object'")
+        return
+    endif
+
+    if name == "" then
+        call DebugLog(LOG_INFO, "'debug watch add' expects <name> <address> <member>, missing 'name'")
+        return
+    endif
+
+    if address == "" then
+        call DebugLog(LOG_INFO, "'debug watch add' expects <name> <address> <member>, missing 'address'")
+        return
+    endif
+
+    if member == "" then
+        call DebugLog(LOG_INFO, "'debug watch add' expects <name> <address> <member>, missing 'member'")
+        return
+    endif
+
+    if typeID == "int" or typeID == "integer" then
+        set typeID = Debug_GetTypeString(DEBUG_TYPE_INTEGER)
+    elseif typeID == "real" then
+        set typeID = Debug_GetTypeString(DEBUG_TYPE_REAL)
+    elseif typeID == "string" then
+        set typeID = Debug_GetTypeString(DEBUG_TYPE_STRING)
+    elseif typeID == "object" then
+        set typeID = Debug_GetTypeString(DEBUG_TYPE_OBJECT)
+    endif
+
+    call Debug_AddWatch(name, S2I(address), S2I(member), typeID)
+endfunction
+
+function CmdDebug_RemoveWatch takes integer eventArgs returns nothing
+    local string index = Cmd_GetString(eventArgs, 3)
+    if index == "" then
+        call DebugLog(LOG_INFO, "debug watch remove missing argument <index>.")
+        return
+    endif
+    call Debug_RemoveWatchAt(S2I(index))
+endfunction
+
+function CmdDebug_ClearWatch takes nothing returns nothing
+    set gDebugWatchCount = 0
+endfunction
+
 function CmdProc_Debug takes nothing returns nothing
     local integer eventArgs = Cmd_GetEventArgs()
     if CmdMatch("component.view", 1, eventArgs) then
@@ -4155,6 +4378,21 @@ function CmdProc_Debug takes nothing returns nothing
     elseif CmdMatch("fastpick", 1, eventArgs) then
         if gGameState == GS_HERO_PICK and TimerGetRemaining(GameState_HeroPick_gTimer) > 15.0 then
             call TimerStart(GameState_HeroPick_gTimer, 15.0, false, null)
+        endif
+    elseif CmdMatch("watch", 1, eventArgs) then
+        if CmdMatch("show", 2, eventArgs) then
+            call Debug_ShowWatch()
+        elseif CmdMatch("hide", 2, eventArgs) then
+            call Debug_HideWatch()
+        elseif CmdMatch("add", 2, eventArgs) then
+            call CmdDebug_AddWatch(eventArgs)
+        elseif CmdMatch("remove", 2, eventArgs) then
+            call CmdDebug_RemoveWatch(eventArgs)
+
+        elseif CmdMatch("clear", 2, eventArgs) then
+            call CmdDebug_ClearWatch()
+        else
+            call DebugLog(LOG_INFO, "Invalid argument for 'debug watch' command. Use either 'show' or 'hide'")
         endif
     else
         call CmdDebug_Help()
@@ -4179,14 +4417,25 @@ function Main_ThreadUpdate takes nothing returns nothing
 	call Thread_Update(driver)
 endfunction
 
+function Main_UpdateDebug takes nothing returns nothing
+    local integer driver = Thread_GetDriver("Main_UpdateDebug")
+    loop
+        call Thread_UpdateTick(driver)
+        call Sleep(GAME_DELTA)
+        call Debug_Update()
+    endloop
+endfunction
+
 function Main_PreInit takes nothing returns nothing
     call DebugLog(LOG_INFO, "Main_PreInit...")
     call Object_PreInit()
+    call Debug_PreInit()
     call Cmd_PreInit()
     call Thread_PreInit()
     call Thread_RegisterDriver("Main_ThreadUpdate", function Main_ThreadUpdate)
     call Thread_StartDriver("Main_ThreadUpdate")
-    
+    call Thread_RegisterDriver("Main_UpdateDebug", function Main_UpdateDebug)
+    call Thread_StartDriver("Main_UpdateDebug")
     // call UnitHook_PreInit()
     // call GameRules_PreInit()
     call GameState_PreInit()

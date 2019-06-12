@@ -3,9 +3,10 @@ Scripts\Core\Util
 Scripts\Core\Object
 Scripts\Core\List
 Scripts\Core\ListTemplates
-Scripts\Core\Cmd
-Scripts\Core\Thread
 Scripts\Core\DisplayBoard
+Scripts\Core\Thread
+Scripts\Core\Debug
+Scripts\Core\Cmd
 Scripts\Game\UnitTypeData_h
 Scripts\Game\GameState_h
 Scripts\Game\PlayerData_h

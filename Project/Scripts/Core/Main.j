@@ -9,14 +9,25 @@ function Main_ThreadUpdate takes nothing returns nothing
 	call Thread_Update(driver)
 endfunction
 
+function Main_UpdateDebug takes nothing returns nothing
+    local integer driver = Thread_GetDriver("Main_UpdateDebug")
+    loop
+        call Thread_UpdateTick(driver)
+        call Sleep(GAME_DELTA)
+        call Debug_Update()
+    endloop
+endfunction
+
 function Main_PreInit takes nothing returns nothing
     call DebugLog(LOG_INFO, "Main_PreInit...")
     call Object_PreInit()
+    call Debug_PreInit()
     call Cmd_PreInit()
     call Thread_PreInit()
     call Thread_RegisterDriver("Main_ThreadUpdate", function Main_ThreadUpdate)
     call Thread_StartDriver("Main_ThreadUpdate")
-    
+    call Thread_RegisterDriver("Main_UpdateDebug", function Main_UpdateDebug)
+    call Thread_StartDriver("Main_UpdateDebug")
     // call UnitHook_PreInit()
     // call GameRules_PreInit()
     call GameState_PreInit()
