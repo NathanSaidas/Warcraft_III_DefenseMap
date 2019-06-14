@@ -145,7 +145,7 @@ function GameState_HeroPick_TransitionIn takes nothing returns nothing
     
     // CreateHeroPicker if not already created
     loop 
-        exitwhen i >= PlayerMgr_gMaxPlayer
+        exitwhen i >= PlayerMgr_gPlayers_mSize
         set current = PlayerMgr_gPlayers[i]
         if PlayerData_IsHumanPlaying(current) then
             call GameState_HeroPick_CreateHeroPicker(current)

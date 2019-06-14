@@ -5,4 +5,6 @@ function Component_PreInit takes nothing returns nothing
     set PlayerHeroComponent_gUpdateFunc = function PlayerHeroComponent_Update
     set MonitorUnitLifeComponent_gDestroyFunc = function MonitorUnitLifeComponent_Destroy
     set MonitorUnitLifeComponent_gUpdateFunc = function MonitorUnitLifeComponent_Update
+    set RaceAIBehavior_gDestroyFunc = function RaceAIBehavior_Destroy
+    set RaceAIBehavior_gUpdateFunc = function RaceAIBehavior_Update
 endfunction

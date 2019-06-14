@@ -6,6 +6,9 @@ function GameState_PreInit takes nothing returns nothing
     if CONFIG_DEFENSE_MAP then
         call GameDirector_PreInit()
     endif
+    if CONFIG_SIEGE_RACER_MAP then
+        call SRGameDirector_PreInit()
+    endif
     call Component_PreInit()
 
     if CONFIG_DEFENSE_MAP then

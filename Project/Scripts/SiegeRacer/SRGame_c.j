@@ -8,6 +8,7 @@ endfunction
 function SiegeRacer_OnGameStart takes nothing returns nothing
     call ModifyGateBJ( bj_GATEOPERATION_OPEN, udg_SC_GateBack )
     call ModifyGateBJ( bj_GATEOPERATION_OPEN, udg_SC_GateFront )
+    call SRGameDirector_SpawnAIPlayerUnits()
 endfunction
 
 function SiegeRacer_TransitionOut takes nothing returns nothing
@@ -115,7 +116,7 @@ function SiegeRacer_UpdateScoreboard takes nothing returns nothing
         call Thread_UpdateTick(mUpdateThread)
 
         if DisplayBoard_GetCurrent() == MULTIBOARD_GAME then
-            set numPlayers = PlayerMgr_gMaxPlayer
+            set numPlayers = PlayerMgr_gPlayers_mSize
             set i = 0
             call DisplayBoard_SetRowCount(MULTIBOARD_GAME, 1 + numPlayers)
 
@@ -131,11 +132,21 @@ function SiegeRacer_UpdateScoreboard takes nothing returns nothing
     endloop
 endfunction
 
+function SiegeRacer_UpdateDirector takes nothing returns nothing
+    local integer mUpdateThread = Thread_GetDriver("SiegeRacer_UpdateDirector")
+
+    loop
+        call Thread_UpdateTick(mUpdateThread)
+        call SRGameDirector_UpdateAIPlayerUnits()
+        call Sleep(GAME_DELTA)
+    endloop
+endfunction
+
 function SiegeRacer_OnCheckpointEnter takes unit u, integer index returns nothing
     local integer unitData = GetUnitId(u)
     local integer playerData = INVALID
     local integer component = INVALID
-    call DebugLog(LOG_INFO, "OnCheckpointEnter: UnitData=" + I2S(unitData) + " -- Index=" + I2S(index))
+    call DebugLog(LOG_INFO, "SRGame_c: OnCheckpointEnter: UnitData=" + I2S(unitData) + " -- Index=" + I2S(index))
 
     if IsNull(unitData) then
         call DebugLog(LOG_ERROR, "SRGame_c: Failed to update checkpoint for unit, missing UnitData.")
@@ -174,32 +185,32 @@ function SiegeRacer_OnCheckpoint5 takes nothing returns nothing
     call SiegeRacer_OnCheckpointEnter(GetEnteringUnit(), 5)
 endfunction
 
-function SiegeRacer_RegisterCheckpoint takes rect area, code callback returns nothing
+function SiegeRacer_RegisterCheckpoint takes rect area, code callback, integer index returns nothing
     local trigger trig = CreateTrigger()
     call TriggerRegisterEnterRectSimple(trig, area)
     call TriggerAddAction(trig, callback)
     set trig = null
+    set SRGame_gCheckpoints[index] = area
 endfunction
 
 function SiegeRacer_RegisterCheckpoints takes nothing returns nothing
-    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint0, function SiegeRacer_OnCheckpoint0)
-    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint1, function SiegeRacer_OnCheckpoint1)
-    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint2, function SiegeRacer_OnCheckpoint2)
-    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint3, function SiegeRacer_OnCheckpoint3)
-    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint4, function SiegeRacer_OnCheckpoint4)
-    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint5, function SiegeRacer_OnCheckpoint5)
+    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint0, function SiegeRacer_OnCheckpoint0, 0)
+    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint1, function SiegeRacer_OnCheckpoint1, 1)
+    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint2, function SiegeRacer_OnCheckpoint2, 2)
+    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint3, function SiegeRacer_OnCheckpoint3, 3)
+    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint4, function SiegeRacer_OnCheckpoint4, 4)
+    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint5, function SiegeRacer_OnCheckpoint5, 5)
 
     set SRPlayerComponent_gMaxCheckPoint = 6
 endfunction
 
 function SiegeRacer_RegisterPlayerComponents takes nothing returns nothing
     local integer i = 0
-    local integer maxPlayer = PlayerMgr_gMaxPlayer
     local integer playerData = INVALID
 
     loop
-        exitwhen i >= maxPlayer
-        set playerData = PlayerMgr_FindPlayerData(i)
+        exitwhen i >= PlayerMgr_gPlayers_mSize
+        set playerData = PlayerMgr_gPlayers[i]
         if not IsNull(playerData) then
             call PlayerData_AddComponent(playerData, SRPlayerComponent_Create())
         endif
@@ -213,6 +224,7 @@ function SiegeRacer_Update takes nothing returns nothing
     local integer mUpdateThread = Thread_GetDriver("SiegeRacer_Update")
     local integer mStateThread = INVALID
     local integer mScoreboardThread = INVALID
+    local integer mUpdateDirectorThread = INVALID
 
     call Thread_RegisterDriver("SiegeRacer_UpdateState", function SiegeRacer_UpdateState)
     set mStateThread = Thread_GetDriver("SiegeRacer_UpdateState")
@@ -220,12 +232,14 @@ function SiegeRacer_Update takes nothing returns nothing
     call Thread_RegisterDriver("SiegeRacer_UpdateScoreboard", function SiegeRacer_UpdateScoreboard)
     set mScoreboardThread = Thread_GetDriver("SiegeRacer_UpdateScoreboard")
 
+    call Thread_RegisterDriver("SiegeRacer_UpdateDirector", function SiegeRacer_UpdateDirector)
+    set mUpdateDirectorThread = Thread_GetDriver("SiegeRacer_UpdateDirector")
+
     call SiegeRacer_RegisterCheckpoints()
     call Sleep(GAME_DELTA)
     call Thread_UpdateTick(mUpdateThread)
     call SiegeRacer_RegisterPlayerComponents()
 
-    call DebugLog(LOG_INFO, "|c00FF00FFBREAKPOINT|r: SiegeRacer Init Done")
     loop
         call Thread_UpdateTick(mUpdateThread)
         if not Thread_IsRunning(mStateThread) then
@@ -234,6 +248,10 @@ function SiegeRacer_Update takes nothing returns nothing
 
         if not Thread_IsRunning(mScoreboardThread) then
             call Thread_StartDriver("SiegeRacer_UpdateScoreboard")
+        endif
+
+        if not Thread_IsRunning(mUpdateDirectorThread) then
+            call Thread_StartDriver("SiegeRacer_UpdateDirector")
         endif
         call Sleep(GAME_DELTA)
     endloop

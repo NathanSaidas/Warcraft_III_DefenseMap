@@ -31,6 +31,10 @@ function DebugLog takes integer logLevel, string msg returns nothing
     call Print(printMsg)
 endfunction
 
+function Breakpoint takes string message returns nothing
+    call DebugLog(LOG_INFO, "|c00FF00FFBREAKPOINT|r: " + message)
+endfunction
+
 function BeginDebug takes nothing returns nothing
     call Print("[Debug]: BeginDebug")
 endfunction

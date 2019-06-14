@@ -1,8 +1,8 @@
 
 function PlayerMgr_RegisterPlayer takes integer playerId returns nothing
     local integer playerData = PlayerData_Create(playerId)
-    set PlayerMgr_gPlayers[PlayerMgr_gMaxPlayer] = playerData
-    set PlayerMgr_gMaxPlayer = PlayerMgr_gMaxPlayer + 1
+    set PlayerMgr_gPlayers[PlayerMgr_gPlayers_mSize] = playerData
+    set PlayerMgr_gPlayers_mSize = PlayerMgr_gPlayers_mSize + 1
 
     // Allow the players to see the 'HeroVision' rect
     call CreateFogModifierRectBJ(true, Player(playerId), FOG_OF_WAR_VISIBLE, gg_rct_HeroVision)
@@ -25,7 +25,7 @@ function PlayerMgr_FindPlayerData takes integer playerId returns integer
     local integer current = INVALID
     local integer i = 0
     loop
-        exitwhen i >= PlayerMgr_gMaxPlayer
+        exitwhen i >= PlayerMgr_gPlayers_mSize
         set current = PlayerMgr_gPlayers[i]
         if LoadInteger(gObject, current, PlayerData_mPlayerId) == playerId then
             return current
@@ -60,7 +60,7 @@ endfunction
 function PlayerMgr_ResetPlayers takes nothing returns nothing
     local integer i = 0
     loop
-        exitwhen i >= PlayerMgr_gMaxPlayer
+        exitwhen i >= PlayerMgr_gPlayers_mSize
         call PlayerMgr_ResetPlayer(PlayerMgr_gPlayers[i])
         set i = i + 1
     endloop
@@ -71,7 +71,7 @@ function PlayerMgr_UpdateHeroes takes nothing returns nothing
     local integer mHero = INVALID
     local integer mPlayerData = INVALID
     loop
-        exitwhen i >= PlayerMgr_gMaxPlayer
+        exitwhen i >= PlayerMgr_gPlayers_mSize
         set mHero = PlayerData_GetHero(PlayerMgr_gPlayers[i])
         if not IsNull(mHero) then
             set mPlayerData = LoadInteger(gObject, mHero, UnitData_mPlayerData)
@@ -84,4 +84,18 @@ function PlayerMgr_UpdateHeroes takes nothing returns nothing
         endif
         set i = i + 1
     endloop
+endfunction
+
+function PlayerMgr_GetActivePlayerCount takes nothing returns integer
+    local integer i = 0
+    local integer result = 0
+
+    loop
+        exitwhen i >= PlayerMgr_gPlayers_mSize
+        if PlayerData_IsHumanPlaying(PlayerMgr_gPlayers[i]) then
+            set result = result + 1
+        endif
+        set i = i + 1
+    endloop
+    return result
 endfunction

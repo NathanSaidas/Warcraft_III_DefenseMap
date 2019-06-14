@@ -111,6 +111,10 @@ function DebugLog takes integer logLevel, string msg returns nothing
     call Print(printMsg)
 endfunction
 
+function Breakpoint takes string message returns nothing
+    call DebugLog(LOG_INFO, "|c00FF00FFBREAKPOINT|r: " + message)
+endfunction
+
 function BeginDebug takes nothing returns nothing
     call Print("[Debug]: BeginDebug")
 endfunction
@@ -523,7 +527,8 @@ globals
     constant integer TYPE_ID_PLAYER_HERO_COMPONENT = 11
     constant integer TYPE_ID_MONITOR_UNIT_LIFE_COMPONENT = 12
     constant integer TYPE_ID_SRPLAYER_COMPONENT = 13
-    constant integer TYPE_ID_MAX = 14
+    constant integer TYPE_ID_RACE_AIBEHAVIOR = 14
+    constant integer TYPE_ID_MAX = 15
 endglobals
 
 function Object_RegisterTypes takes nothing returns nothing
@@ -541,6 +546,7 @@ function Object_RegisterTypes takes nothing returns nothing
     call ps_Object_RegisterType(TYPE_ID_PLAYER_HERO_COMPONENT, "PlayerHeroComponent", 1000, 1000)
     call ps_Object_RegisterType(TYPE_ID_MONITOR_UNIT_LIFE_COMPONENT, "MonitorUnitLifeComponent", 1000, 1000)
     call ps_Object_RegisterType(TYPE_ID_SRPLAYER_COMPONENT, "SRPlayerComponent", 24, 24)
+    call ps_Object_RegisterType(TYPE_ID_RACE_AIBEHAVIOR, "RaceAIBehavior", 24, 24)
 endfunction
 
 function Object_PreInit takes nothing returns nothing
@@ -2633,9 +2639,6 @@ function UnitData_Create takes nothing returns integer
     call SaveInteger(gObject, self, UnitData_mPlayerData, INVALID)
     call SaveInteger(gObject, self, UnitData_mComponents, List_Create(TYPE_ID_COMPONENT))
     call SaveBoolean(gObject, self, UnitData_mQueueDestroy, false)
-
-    call DebugLog(LOG_INFO, "Debug watch " + I2S(self) + " @ " + I2S(UnitData_mPlayerData))
-
     return self
 endfunction
 
@@ -2703,13 +2706,22 @@ endfunction// ______________________________________________
 // ----------------------------------------------
 // @singleton
 globals
+    constant integer PlayerMgr_gMaxPlayer = 8
+
     integer array PlayerMgr_gPlayers
-    integer PlayerMgr_gMaxPlayer = 0
+    integer PlayerMgr_gPlayers_mSize = 0
     integer PlayerMgr_gEnemyForcePlayer = INVALID
     integer PlayerMgr_gAllyForcePlayer = INVALID
 endglobals
 
-// ______________________________________________
+// function PlayerMgr_RegisterPlayer takes integer playerId returns nothing
+// function PlayerMgr_RegisterAllyForcePlayer takes integer playerId returns nothing
+// function PlayerMgr_RegisterEnemyForcePlayer takes integer playerId returns nothing
+// function PlayerMgr_FindPlayerData takes integer playerId returns integer
+// function PlayerMgr_ResetPlayer takes integer playerData returns nothing
+// function PlayerMgr_ResetPlayers takes nothing returns nothing
+// function PlayerMgr_UpdateHeroes takes nothing returns nothing
+// function PlayerMgr_GetActivePlayerCount takes nothing returns integer// ______________________________________________
 // Scripts/Game/UnitMgr_h
 // ----------------------------------------------
 globals
@@ -2746,6 +2758,35 @@ globals
 
     boolean GameDirector_gRunning = false
 endglobals// ______________________________________________
+// Scripts/SiegeRacer/SRGameDirector_h
+// ----------------------------------------------
+// Task:
+// Spawn AI-Players
+// Spawn AI-Enemies
+
+globals
+    integer array SRGameDirector_gPlayerUnits
+    integer       SRGameDirector_gPlayerUnits_mSize = 0
+    integer       SRGameDirector_gMaxUnit = 150
+
+    real          SRGameDirector_gPlayerSpawnX = 0.0
+    real          SRGameDirector_gPlayerSpawnY = 0.0
+endglobals
+
+function SRGameDirector_PreInit takes nothing returns nothing
+    set SRGameDirector_gPlayerSpawnX = GetRectCenterX(gg_rct_HeroPickSpawn)
+    set SRGameDirector_gPlayerSpawnY = GetRectCenterY(gg_rct_HeroPickSpawn)
+endfunction
+
+// function SRGameDirector_SpawnAIPlayerUnits takes nothing returns nothing
+// function SRGameDirector_RemoveAIPlayerUnits takes nothing returns nothing
+// function SRGameDirector_UpdateAIPlayerUnits takes nothing returns nothing// ______________________________________________
+// Scripts/SiegeRacer/SRGame_h
+// ----------------------------------------------
+globals
+    rect array SRGame_gCheckpoints
+endglobals
+// ______________________________________________
 // Scripts/Game/UnitTypeData_c
 // ----------------------------------------------
 function UnitTypeData_GetName takes integer self returns string
@@ -3065,8 +3106,8 @@ endfunction
 
 function PlayerMgr_RegisterPlayer takes integer playerId returns nothing
     local integer playerData = PlayerData_Create(playerId)
-    set PlayerMgr_gPlayers[PlayerMgr_gMaxPlayer] = playerData
-    set PlayerMgr_gMaxPlayer = PlayerMgr_gMaxPlayer + 1
+    set PlayerMgr_gPlayers[PlayerMgr_gPlayers_mSize] = playerData
+    set PlayerMgr_gPlayers_mSize = PlayerMgr_gPlayers_mSize + 1
 
     // Allow the players to see the 'HeroVision' rect
     call CreateFogModifierRectBJ(true, Player(playerId), FOG_OF_WAR_VISIBLE, gg_rct_HeroVision)
@@ -3089,7 +3130,7 @@ function PlayerMgr_FindPlayerData takes integer playerId returns integer
     local integer current = INVALID
     local integer i = 0
     loop
-        exitwhen i >= PlayerMgr_gMaxPlayer
+        exitwhen i >= PlayerMgr_gPlayers_mSize
         set current = PlayerMgr_gPlayers[i]
         if LoadInteger(gObject, current, PlayerData_mPlayerId) == playerId then
             return current
@@ -3124,7 +3165,7 @@ endfunction
 function PlayerMgr_ResetPlayers takes nothing returns nothing
     local integer i = 0
     loop
-        exitwhen i >= PlayerMgr_gMaxPlayer
+        exitwhen i >= PlayerMgr_gPlayers_mSize
         call PlayerMgr_ResetPlayer(PlayerMgr_gPlayers[i])
         set i = i + 1
     endloop
@@ -3135,7 +3176,7 @@ function PlayerMgr_UpdateHeroes takes nothing returns nothing
     local integer mHero = INVALID
     local integer mPlayerData = INVALID
     loop
-        exitwhen i >= PlayerMgr_gMaxPlayer
+        exitwhen i >= PlayerMgr_gPlayers_mSize
         set mHero = PlayerData_GetHero(PlayerMgr_gPlayers[i])
         if not IsNull(mHero) then
             set mPlayerData = LoadInteger(gObject, mHero, UnitData_mPlayerData)
@@ -3148,6 +3189,20 @@ function PlayerMgr_UpdateHeroes takes nothing returns nothing
         endif
         set i = i + 1
     endloop
+endfunction
+
+function PlayerMgr_GetActivePlayerCount takes nothing returns integer
+    local integer i = 0
+    local integer result = 0
+
+    loop
+        exitwhen i >= PlayerMgr_gPlayers_mSize
+        if PlayerData_IsHumanPlaying(PlayerMgr_gPlayers[i]) then
+            set result = result + 1
+        endif
+        set i = i + 1
+    endloop
+    return result
 endfunction// ______________________________________________
 // Scripts/Components/RunToCityComponent
 // ----------------------------------------------
@@ -3416,6 +3471,60 @@ function SRPlayerComponent_Update takes nothing returns nothing
     local integer self = Component_gUpdateArg_Self
 
 endfunction// ______________________________________________
+// Scripts/SiegeRacer/Components/RaceAIBehavior_h
+// ----------------------------------------------
+// DECLARE_TYPE(RaceAIBehavior, 24, 24)
+globals
+
+    constant integer RaceAIBehavior_mLogged = Component_MAX_MEMBER + 0
+    constant integer RaceAIBehavior_MAX_MEMBER = Component_MAX_MEMBER + 0
+
+    code RaceAIBehavior_gDestroyFunc = null
+    code RaceAIBehavior_gUpdateFunc = null
+endglobals
+
+function RaceAIBehavior_Create takes nothing returns integer
+    local integer self = Object_Allocate(TYPE_ID_RACE_AIBEHAVIOR, RaceAIBehavior_MAX_MEMBER)
+    if IsNull(self) then
+        return self
+    endif
+
+    call SaveBoolean(gObject, self, RaceAIBehavior_mLogged, false)
+    call Component_Derive(self, RaceAIBehavior_gDestroyFunc, RaceAIBehavior_gUpdateFunc)
+    return self
+endfunction// ______________________________________________
+// Scripts/SiegeRacer/Components/RaceAIBehavior_c
+// ----------------------------------------------
+
+function RaceAIBehavior_Destroy takes nothing returns nothing
+    local integer self = Component_gDestructorArg_Self
+
+    call RemoveSavedBoolean(gObject, self, RaceAIBehavior_mLogged)
+    call Object_Free(self)
+endfunction
+
+function RaceAIBehavior_Update takes nothing returns nothing
+    local integer self = Component_gUpdateArg_Self
+    local integer unitData = LoadInteger(gObject, self, Component_mParent)
+    local integer playerData = LoadInteger(gObject, unitData, UnitData_mPlayerData)
+    local integer playerComp = PlayerData_GetComponent(playerData, TYPE_ID_SRPLAYER_COMPONENT)
+    local integer checkPointIndex = LoadInteger(gObject, playerComp, SRPlayerComponent_mCheckPointIndex)
+    local boolean logged = LoadBoolean(gObject, self, RaceAIBehavior_mLogged)
+    local unit unitHandle = LoadUnitHandle(gObject, unitData, UnitData_mHandle)
+
+
+    if not logged then
+        call Breakpoint("RaceAIBehavior::Update")
+        call DebugLog(LOG_INFO, "UnitData=" + I2S(unitData))
+        call DebugLog(LOG_INFO, "PlayerData=" + I2S(playerData))
+        call DebugLog(LOG_INFO, "PlayerComponent=" + I2S(playerComp))
+    endif
+
+    call IssuePointOrder(unitHandle, "move", GetRectCenterX(SRGame_gCheckpoints[checkPointIndex]), GetRectCenterY(SRGame_gCheckpoints[checkPointIndex]))
+    call SaveBoolean(gObject, self, RaceAIBehavior_mLogged, true)
+
+    set unitHandle = null
+endfunction// ______________________________________________
 // Scripts/Game/GameDirector_c
 // ----------------------------------------------
 
@@ -3586,6 +3695,47 @@ function GameDirector_UpdateUnits takes nothing returns nothing
                 call UnitData_Update(GameDirector_gWaveUnits[i])
             endif
         endif
+        set i = i + 1
+    endloop
+endfunction// ______________________________________________
+// Scripts/SiegeRacer/SRGameDirector_c
+// ----------------------------------------------
+
+function SRGameDirector_SpawnAIPlayerUnits takes nothing returns nothing
+    local integer i = 0
+    local integer typeData = INVALID
+    local integer playerData = INVALID
+    local integer unitData = INVALID
+
+    call Breakpoint("SRGameDirector_c.SpawnAIPlayerUnits ")
+    set typeData = UnitMgr_FindUnitTypeByString("SiegeRacer_Tank")
+    loop
+        exitwhen i >= PlayerMgr_gPlayers_mSize
+        set playerData = PlayerMgr_gPlayers[i]
+        if not PlayerData_IsHumanPlaying(playerData) then
+            set unitData = UnitMgr_CreateUnit(typeData, playerData, SRGameDirector_gPlayerSpawnX, SRGameDirector_gPlayerSpawnY)
+            set SRGameDirector_gPlayerUnits[SRGameDirector_gPlayerUnits_mSize] = unitData
+            set SRGameDirector_gPlayerUnits_mSize = SRGameDirector_gPlayerUnits_mSize + 1
+
+            call SaveInteger(gObject, playerData, PlayerData_mHero, unitData)
+            call UnitData_AddComponent(unitData, RaceAIBehavior_Create())
+        endif
+        set i = i + 1
+    endloop
+endfunction
+function SRGameDirector_RemoveAIPlayerUnits takes nothing returns nothing
+
+endfunction
+function SRGameDirector_UpdateAIPlayerUnits takes nothing returns nothing
+    local integer i = 0
+    local integer unitData = INVALID
+    local integer component = INVALID
+
+    loop
+        exitwhen i >= SRGameDirector_gPlayerUnits_mSize
+        set unitData = SRGameDirector_gPlayerUnits[i]
+        set component = UnitData_GetComponent(unitData, TYPE_ID_RACE_AIBEHAVIOR)
+        call Component_Update(component)
         set i = i + 1
     endloop
 endfunction// ______________________________________________
@@ -3789,7 +3939,7 @@ function GameState_HeroPick_TransitionIn takes nothing returns nothing
     
     // CreateHeroPicker if not already created
     loop 
-        exitwhen i >= PlayerMgr_gMaxPlayer
+        exitwhen i >= PlayerMgr_gPlayers_mSize
         set current = PlayerMgr_gPlayers[i]
         if PlayerData_IsHumanPlaying(current) then
             call GameState_HeroPick_CreateHeroPicker(current)
@@ -4074,11 +4224,6 @@ function Game_Update takes nothing returns nothing
         call Sleep(GAME_DELTA)
     endloop
 endfunction// ______________________________________________
-// Scripts/SiegeRacer/SRGame_h
-// ----------------------------------------------
-globals
-endglobals
-// ______________________________________________
 // Scripts/SiegeRacer/SRGame_c
 // ----------------------------------------------
 function SiegeRacer_OnLoadingDone takes nothing returns nothing
@@ -4091,6 +4236,7 @@ endfunction
 function SiegeRacer_OnGameStart takes nothing returns nothing
     call ModifyGateBJ( bj_GATEOPERATION_OPEN, udg_SC_GateBack )
     call ModifyGateBJ( bj_GATEOPERATION_OPEN, udg_SC_GateFront )
+    call SRGameDirector_SpawnAIPlayerUnits()
 endfunction
 
 function SiegeRacer_TransitionOut takes nothing returns nothing
@@ -4198,7 +4344,7 @@ function SiegeRacer_UpdateScoreboard takes nothing returns nothing
         call Thread_UpdateTick(mUpdateThread)
 
         if DisplayBoard_GetCurrent() == MULTIBOARD_GAME then
-            set numPlayers = PlayerMgr_gMaxPlayer
+            set numPlayers = PlayerMgr_gPlayers_mSize
             set i = 0
             call DisplayBoard_SetRowCount(MULTIBOARD_GAME, 1 + numPlayers)
 
@@ -4214,11 +4360,21 @@ function SiegeRacer_UpdateScoreboard takes nothing returns nothing
     endloop
 endfunction
 
+function SiegeRacer_UpdateDirector takes nothing returns nothing
+    local integer mUpdateThread = Thread_GetDriver("SiegeRacer_UpdateDirector")
+
+    loop
+        call Thread_UpdateTick(mUpdateThread)
+        call SRGameDirector_UpdateAIPlayerUnits()
+        call Sleep(GAME_DELTA)
+    endloop
+endfunction
+
 function SiegeRacer_OnCheckpointEnter takes unit u, integer index returns nothing
     local integer unitData = GetUnitId(u)
     local integer playerData = INVALID
     local integer component = INVALID
-    call DebugLog(LOG_INFO, "OnCheckpointEnter: UnitData=" + I2S(unitData) + " -- Index=" + I2S(index))
+    call DebugLog(LOG_INFO, "SRGame_c: OnCheckpointEnter: UnitData=" + I2S(unitData) + " -- Index=" + I2S(index))
 
     if IsNull(unitData) then
         call DebugLog(LOG_ERROR, "SRGame_c: Failed to update checkpoint for unit, missing UnitData.")
@@ -4257,32 +4413,32 @@ function SiegeRacer_OnCheckpoint5 takes nothing returns nothing
     call SiegeRacer_OnCheckpointEnter(GetEnteringUnit(), 5)
 endfunction
 
-function SiegeRacer_RegisterCheckpoint takes rect area, code callback returns nothing
+function SiegeRacer_RegisterCheckpoint takes rect area, code callback, integer index returns nothing
     local trigger trig = CreateTrigger()
     call TriggerRegisterEnterRectSimple(trig, area)
     call TriggerAddAction(trig, callback)
     set trig = null
+    set SRGame_gCheckpoints[index] = area
 endfunction
 
 function SiegeRacer_RegisterCheckpoints takes nothing returns nothing
-    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint0, function SiegeRacer_OnCheckpoint0)
-    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint1, function SiegeRacer_OnCheckpoint1)
-    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint2, function SiegeRacer_OnCheckpoint2)
-    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint3, function SiegeRacer_OnCheckpoint3)
-    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint4, function SiegeRacer_OnCheckpoint4)
-    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint5, function SiegeRacer_OnCheckpoint5)
+    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint0, function SiegeRacer_OnCheckpoint0, 0)
+    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint1, function SiegeRacer_OnCheckpoint1, 1)
+    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint2, function SiegeRacer_OnCheckpoint2, 2)
+    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint3, function SiegeRacer_OnCheckpoint3, 3)
+    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint4, function SiegeRacer_OnCheckpoint4, 4)
+    call SiegeRacer_RegisterCheckpoint(gg_rct_srCheckpoint5, function SiegeRacer_OnCheckpoint5, 5)
 
     set SRPlayerComponent_gMaxCheckPoint = 6
 endfunction
 
 function SiegeRacer_RegisterPlayerComponents takes nothing returns nothing
     local integer i = 0
-    local integer maxPlayer = PlayerMgr_gMaxPlayer
     local integer playerData = INVALID
 
     loop
-        exitwhen i >= maxPlayer
-        set playerData = PlayerMgr_FindPlayerData(i)
+        exitwhen i >= PlayerMgr_gPlayers_mSize
+        set playerData = PlayerMgr_gPlayers[i]
         if not IsNull(playerData) then
             call PlayerData_AddComponent(playerData, SRPlayerComponent_Create())
         endif
@@ -4296,6 +4452,7 @@ function SiegeRacer_Update takes nothing returns nothing
     local integer mUpdateThread = Thread_GetDriver("SiegeRacer_Update")
     local integer mStateThread = INVALID
     local integer mScoreboardThread = INVALID
+    local integer mUpdateDirectorThread = INVALID
 
     call Thread_RegisterDriver("SiegeRacer_UpdateState", function SiegeRacer_UpdateState)
     set mStateThread = Thread_GetDriver("SiegeRacer_UpdateState")
@@ -4303,12 +4460,14 @@ function SiegeRacer_Update takes nothing returns nothing
     call Thread_RegisterDriver("SiegeRacer_UpdateScoreboard", function SiegeRacer_UpdateScoreboard)
     set mScoreboardThread = Thread_GetDriver("SiegeRacer_UpdateScoreboard")
 
+    call Thread_RegisterDriver("SiegeRacer_UpdateDirector", function SiegeRacer_UpdateDirector)
+    set mUpdateDirectorThread = Thread_GetDriver("SiegeRacer_UpdateDirector")
+
     call SiegeRacer_RegisterCheckpoints()
     call Sleep(GAME_DELTA)
     call Thread_UpdateTick(mUpdateThread)
     call SiegeRacer_RegisterPlayerComponents()
 
-    call DebugLog(LOG_INFO, "|c00FF00FFBREAKPOINT|r: SiegeRacer Init Done")
     loop
         call Thread_UpdateTick(mUpdateThread)
         if not Thread_IsRunning(mStateThread) then
@@ -4317,6 +4476,10 @@ function SiegeRacer_Update takes nothing returns nothing
 
         if not Thread_IsRunning(mScoreboardThread) then
             call Thread_StartDriver("SiegeRacer_UpdateScoreboard")
+        endif
+
+        if not Thread_IsRunning(mUpdateDirectorThread) then
+            call Thread_StartDriver("SiegeRacer_UpdateDirector")
         endif
         call Sleep(GAME_DELTA)
     endloop
@@ -4423,6 +4586,8 @@ function Component_PreInit takes nothing returns nothing
     set PlayerHeroComponent_gUpdateFunc = function PlayerHeroComponent_Update
     set MonitorUnitLifeComponent_gDestroyFunc = function MonitorUnitLifeComponent_Destroy
     set MonitorUnitLifeComponent_gUpdateFunc = function MonitorUnitLifeComponent_Update
+    set RaceAIBehavior_gDestroyFunc = function RaceAIBehavior_Destroy
+    set RaceAIBehavior_gUpdateFunc = function RaceAIBehavior_Update
 endfunction// ______________________________________________
 // Scripts/Game/GameDirectorRegister
 // ----------------------------------------------
@@ -4487,6 +4652,9 @@ function GameState_PreInit takes nothing returns nothing
     call UnitMgr_PreInit()
     if CONFIG_DEFENSE_MAP then
         call GameDirector_PreInit()
+    endif
+    if CONFIG_SIEGE_RACER_MAP then
+        call SRGameDirector_PreInit()
     endif
     call Component_PreInit()
 
