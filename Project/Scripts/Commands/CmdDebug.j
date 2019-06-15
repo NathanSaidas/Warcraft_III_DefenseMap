@@ -135,11 +135,16 @@ function CmdProc_Debug takes nothing returns nothing
             call CmdDebug_AddWatch(eventArgs)
         elseif CmdMatch("remove", 2, eventArgs) then
             call CmdDebug_RemoveWatch(eventArgs)
-
         elseif CmdMatch("clear", 2, eventArgs) then
             call CmdDebug_ClearWatch()
         else
             call DebugLog(LOG_INFO, "Invalid argument for 'debug watch' command. Use either 'show' or 'hide'")
+        endif
+    elseif CmdMatch("thread", 1, eventArgs) then
+        if CmdMatch("show", 2, eventArgs) then
+            call Debug_ShowThreadView()
+        elseif CmdMatch("hide", 2, eventArgs) then
+            call Debug_HideThreadView()
         endif
     else
         call CmdDebug_Help()

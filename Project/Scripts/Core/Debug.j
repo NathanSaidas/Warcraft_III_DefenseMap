@@ -14,12 +14,11 @@ endglobals
 
 function Debug_PreInit takes nothing returns nothing
     call DisplayBoard_Create(MULTIBOARD_OBJECT_WATCH, 1, 4, "Debug Watch Window")
+    call DisplayBoard_Create(MULTIBOARD_THREAD_WATCH, 1, 4, "Debug Thread Window")
 endfunction
 
 function Debug_SaveDisplayBoard takes nothing returns nothing
-    if DisplayBoard_GetCurrent() != MULTIBOARD_OBJECT_WATCH then
-        set gDebugRestoreMultiboard = DisplayBoard_GetCurrent()
-    endif
+    set gDebugRestoreMultiboard = MULTIBOARD_GAME
 endfunction
 
 function Debug_GetValueString takes integer addr, integer member, integer typeID returns string
@@ -72,14 +71,6 @@ function Debug_UpdateWatchValues takes nothing returns nothing
         set i = i + 1
     endloop
 
-endfunction
-
-function Debug_Update takes nothing returns nothing
-    if DisplayBoard_GetCurrent() == MULTIBOARD_OBJECT_WATCH then
-        call DisplayBoard_SetRowCount(MULTIBOARD_OBJECT_WATCH, 1 + gDebugWatchCount)
-        call Debug_UpdateWatchValues()
-        call DisplayBoard_Refresh()
-    endif
 endfunction
 
 function Debug_ShowWatch takes nothing returns nothing
@@ -147,4 +138,62 @@ function Debug_RemoveWatch takes string variableName returns nothing
         endif
         set i = i + 1
     endloop
+endfunction
+
+function Debug_UpdateThreadView takes nothing returns nothing
+    // <Name> <Running> <MainTick> <LocalTick>
+    local integer drivers = LoadInteger(gObject, gThread, Thread_mDrivers)
+    local integer drivers_mSize = List_GetSize(drivers)
+    local integer i = 0
+    local integer driver = INVALID
+
+    call DisplayBoard_SetRowCount(MULTIBOARD_THREAD_WATCH, 1 + drivers_mSize)
+    call DisplayBoard_SetTextItem(MULTIBOARD_THREAD_WATCH, 0, 0, 20.0, "Thread Name", MULTIBOARD_COLOR_TITLE_YELLOW)
+    call DisplayBoard_SetTextItem(MULTIBOARD_THREAD_WATCH, 1, 0, 8.0, "Running", MULTIBOARD_COLOR_TITLE_YELLOW)
+    call DisplayBoard_SetTextItem(MULTIBOARD_THREAD_WATCH, 2, 0, 8.0, "Main Tick", MULTIBOARD_COLOR_TITLE_YELLOW)
+    call DisplayBoard_SetTextItem(MULTIBOARD_THREAD_WATCH, 3, 0, 8.0, "Local Tick", MULTIBOARD_COLOR_TITLE_YELLOW)
+
+    loop
+        exitwhen i >= drivers_mSize
+        set driver = List_GetObject(drivers, i)
+
+        call DisplayBoard_SetTextItem(MULTIBOARD_THREAD_WATCH, 0, i + 1, 20.0, LoadStr(gObject, driver, p_Object_Name), MULTIBOARD_COLOR_WHITE)
+        call DisplayBoard_SetTextItem(MULTIBOARD_THREAD_WATCH, 1, i + 1, 8.0, B2S(LoadBoolean(gObject, driver, ThreadDriver_mRunning)), MULTIBOARD_COLOR_WHITE)
+        call DisplayBoard_SetTextItem(MULTIBOARD_THREAD_WATCH, 2, i + 1, 8.0, I2S(LoadInteger(gObject, driver, ThreadDriver_mMainTick)), MULTIBOARD_COLOR_WHITE)
+        call DisplayBoard_SetTextItem(MULTIBOARD_THREAD_WATCH, 3, i + 1, 8.0, I2S(LoadInteger(gObject, driver, ThreadDriver_mLocalTick)), MULTIBOARD_COLOR_WHITE)
+
+        set i = i + 1
+    endloop
+
+    call DisplayBoard_Refresh()
+
+    // TYPE_ID_THREAD_DRIVER
+endfunction
+
+function Debug_ShowThreadView takes nothing returns nothing
+    if DisplayBoard_GetCurrent() == MULTIBOARD_THREAD_WATCH then
+        return
+    endif
+
+    call Debug_SaveDisplayBoard()
+    call Debug_UpdateThreadView()
+    call DisplayBoard_Show(MULTIBOARD_THREAD_WATCH, true)
+endfunction
+
+function Debug_HideThreadView takes nothing returns nothing
+    if gDebugRestoreMultiboard != INVALID then
+        call DisplayBoard_Show(gDebugRestoreMultiboard, true)
+    else
+        call DisplayBoard_Hide()
+    endif
+endfunction
+
+function Debug_Update takes nothing returns nothing
+    if DisplayBoard_GetCurrent() == MULTIBOARD_OBJECT_WATCH then
+        call DisplayBoard_SetRowCount(MULTIBOARD_OBJECT_WATCH, 1 + gDebugWatchCount)
+        call Debug_UpdateWatchValues()
+        call DisplayBoard_Refresh()
+    elseif DisplayBoard_GetCurrent() == MULTIBOARD_THREAD_WATCH then
+        call Debug_UpdateThreadView()
+    endif
 endfunction
