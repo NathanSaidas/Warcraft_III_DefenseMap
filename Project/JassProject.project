@@ -31,6 +31,7 @@ Scripts\SiegeRacer\Components\SRPlayerComponent_c
 Scripts\SiegeRacer\Components\RaceAIBehavior_h
 Scripts\SiegeRacer\Components\RaceAIBehavior_c
 Scripts\Game\GameDirector_c
+Scripts\SiegeRacer\SRPickupSpawner_h
 Scripts\SiegeRacer\SRGameDirector_c
 Scripts\Game\GameState_Loading_h
 Scripts\Game\GameState_Loading_c
@@ -42,6 +43,7 @@ Scripts\Game\GameState_Failed_c
 Scripts\Game\GameState_Failed_h
 Scripts\Game\GameState_Success_c
 Scripts\Game\GameState_Success_h
+Scripts\SiegeRacer\SRPickupSpawner_c
 Scripts\Game\Game_h
 Scripts\Game\Game_c
 Scripts\SiegeRacer\SRGame_c

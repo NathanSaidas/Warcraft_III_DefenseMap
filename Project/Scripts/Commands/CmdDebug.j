@@ -64,7 +64,7 @@ function CmdDebug_AddWatch takes integer eventArgs returns nothing
     endif
 
 
-    if typeID != "int" and typeID != "integer" and typeID != "real" and typeID != "string" and typeID != "object" then
+    if typeID != "int" and typeID != "integer" and typeID != "real" and typeID != "string" and typeID != "object" and typeID != "bool" and typeID != "boolean" then
         call DebugLog(LOG_INFO, "'debug watch add' expects the type to be one of the following: 'int' 'real' 'string' or 'object'")
         return
     endif
@@ -90,6 +90,8 @@ function CmdDebug_AddWatch takes integer eventArgs returns nothing
         set typeID = Debug_GetTypeString(DEBUG_TYPE_REAL)
     elseif typeID == "string" then
         set typeID = Debug_GetTypeString(DEBUG_TYPE_STRING)
+    elseif typeID == "bool" or typeID == "boolean" then
+        set typeID = Debug_GetTypeString(DEBUG_TYPE_BOOLEAN)
     elseif typeID == "object" then
         set typeID = Debug_GetTypeString(DEBUG_TYPE_OBJECT)
     endif

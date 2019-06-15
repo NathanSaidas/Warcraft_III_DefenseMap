@@ -2,7 +2,8 @@ globals
     constant integer DEBUG_TYPE_INTEGER = 0
     constant integer DEBUG_TYPE_REAL = 1
     constant integer DEBUG_TYPE_STRING = 2
-    constant integer DEBUG_TYPE_OBJECT = 3
+    constant integer DEBUG_TYPE_BOOLEAN = 3
+    constant integer DEBUG_TYPE_OBJECT = 4
 
     integer gDebugRestoreMultiboard = INVALID
     string array gDebugWatchVariables
@@ -28,6 +29,8 @@ function Debug_GetValueString takes integer addr, integer member, integer typeID
         return R2S(LoadReal(gObject, addr, member))
     elseif typeID == DEBUG_TYPE_STRING then
         return LoadStr(gObject, addr, member)
+    elseif typeID == DEBUG_TYPE_BOOLEAN then
+        return B2S(LoadBoolean(gObject, addr, member))
     else
         return "{}"
     endif
@@ -40,6 +43,8 @@ function Debug_GetTypeString takes integer typeID returns string
         return "Real"
     elseif typeID == DEBUG_TYPE_STRING then
         return "String"
+    elseif typeID == DEBUG_TYPE_BOOLEAN then
+        return "Bool"
     else
         return "Object"
     endif
@@ -52,6 +57,8 @@ function Debug_GetTypeFromString takes string typeID returns integer
         return DEBUG_TYPE_REAL
     elseif typeID == "String" then
         return DEBUG_TYPE_STRING
+    elseif typeID == "Bool" or typeID == "Boolean" then
+        return DEBUG_TYPE_BOOLEAN
     else
         return DEBUG_TYPE_OBJECT
     endif

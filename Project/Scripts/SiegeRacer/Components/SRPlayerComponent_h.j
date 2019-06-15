@@ -32,7 +32,7 @@ function SRPlayerComponent_OnCheckpointEnter takes integer self, integer index r
         return
     endif
 
-    call DebugLog(LOG_INFO, "SRPlayerComponent_OnCheckpointEnter")
+    // call DebugLog(LOG_INFO, "SRPlayerComponent_OnCheckpointEnter")
     set mCheckPointIndex = LoadInteger(gObject, self, SRPlayerComponent_mCheckPointIndex)
     set mLapsComplete = LoadInteger(gObject, self, SRPlayerComponent_mLapsComplete)
 

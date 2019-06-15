@@ -11,6 +11,15 @@ function SiegeRacer_OnGameStart takes nothing returns nothing
     call SRGameDirector_SpawnAIPlayerUnits()
 endfunction
 
+function SiegeRacer_OnGameUpdate takes nothing returns nothing
+    local integer i = 0
+    loop
+        exitwhen i >= SRGame_gPickupSpawners_mSize
+        call SRPickupSpawner_Update(SRGame_gPickupSpawners[i])
+        set i = i + 1
+    endloop
+endfunction
+
 function SiegeRacer_TransitionOut takes nothing returns nothing
     if gGameState == GS_LOADING then
         call SiegeRacer_OnLoadingDone()
@@ -66,7 +75,7 @@ function SiegeRacer_UpdateState takes nothing returns nothing
         elseif gGameState == GS_HERO_PICK then
             call GameState_HeroPick_Update()
         elseif gGameState == GS_PLAYING then
-
+            call SiegeRacer_OnGameUpdate()
         endif
 
         call Sleep(GAME_DELTA)
@@ -146,7 +155,7 @@ function SiegeRacer_OnCheckpointEnter takes unit u, integer index returns nothin
     local integer unitData = GetUnitId(u)
     local integer playerData = INVALID
     local integer component = INVALID
-    call DebugLog(LOG_INFO, "SRGame_c: OnCheckpointEnter: UnitData=" + I2S(unitData) + " -- Index=" + I2S(index))
+    // call DebugLog(LOG_INFO, "SRGame_c: OnCheckpointEnter: UnitData=" + I2S(unitData) + " -- Index=" + I2S(index))
 
     if IsNull(unitData) then
         call DebugLog(LOG_ERROR, "SRGame_c: Failed to update checkpoint for unit, missing UnitData.")
@@ -204,6 +213,40 @@ function SiegeRacer_RegisterCheckpoints takes nothing returns nothing
     set SRPlayerComponent_gMaxCheckPoint = 6
 endfunction
 
+function SiegeRacer_RegisterSpawner takes rect rct, real start returns nothing
+    local integer spawner = SRPickupSpawner_Create(start, 15.0, SRGame_gPickupTypes, GetRectCenterX(rct), GetRectCenterY(rct))
+    set SRGame_gPickupSpawners[SRGame_gPickupSpawners_mSize] = spawner
+    set SRGame_gPickupSpawners_mSize = SRGame_gPickupSpawners_mSize + 1
+endfunction
+
+function SiegeRacer_OnItemPickedUp takes nothing returns nothing
+    local integer spawner = GetItemUserData(GetManipulatedItem())
+    if spawner == 0 or IsNull(spawner) then
+        return
+    endif
+    call SRPickupSpawner_ReleaseItem(spawner)
+endfunction
+
+function SiegeRacer_RegisterSpawners takes nothing returns nothing
+    set SRGame_OnItemPickedUp = CreateTrigger()
+    call TriggerRegisterAnyUnitEventBJ(SRGame_OnItemPickedUp, EVENT_PLAYER_UNIT_PICKUP_ITEM)
+    call TriggerAddAction(SRGame_OnItemPickedUp, function SiegeRacer_OnItemPickedUp)
+
+    set SRGame_gPickupTypes = List_Create(TYPE_ID_INT)
+    call List_AddInt(SRGame_gPickupTypes, 'I00A')
+
+    call SiegeRacer_RegisterSpawner(gg_rct_srPickUpSpawn00, 35.0)
+    call SiegeRacer_RegisterSpawner(gg_rct_srPickUpSpawn01, 50.0)
+    call SiegeRacer_RegisterSpawner(gg_rct_srPickUpSpawn02, 50.0)
+    call SiegeRacer_RegisterSpawner(gg_rct_srPickUpSpawn03, 45.0)
+    call SiegeRacer_RegisterSpawner(gg_rct_srPickUpSpawn04, 75.0)
+    call SiegeRacer_RegisterSpawner(gg_rct_srPickUpSpawn05, 60.0)
+    call SiegeRacer_RegisterSpawner(gg_rct_srPickUpSpawn06, 60.0)
+    call SiegeRacer_RegisterSpawner(gg_rct_srPickUpSpawn07, 90.0)
+    call SiegeRacer_RegisterSpawner(gg_rct_srPickUpSpawn08, 90.0)
+    call SiegeRacer_RegisterSpawner(gg_rct_srPickUpSpawn09, 80.0)
+endfunction
+
 function SiegeRacer_RegisterPlayerComponents takes nothing returns nothing
     local integer i = 0
     local integer playerData = INVALID
@@ -236,6 +279,7 @@ function SiegeRacer_Update takes nothing returns nothing
     set mUpdateDirectorThread = Thread_GetDriver("SiegeRacer_UpdateDirector")
 
     call SiegeRacer_RegisterCheckpoints()
+    call SiegeRacer_RegisterSpawners()
     call Sleep(GAME_DELTA)
     call Thread_UpdateTick(mUpdateThread)
     call SiegeRacer_RegisterPlayerComponents()
